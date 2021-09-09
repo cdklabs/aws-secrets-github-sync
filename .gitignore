@@ -47,4 +47,5 @@ junit.xml
 !/tsconfig.jest.json
 !/.eslintrc.json
 !/tsconfig.eslint.json
+!/secrets.json
 !/.github/workflows/release.yml

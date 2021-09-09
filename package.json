@@ -1,5 +1,9 @@
 {
   "name": "sm2gh-secrets",
+  "description": "Update GitHub repository secrets from an AWS SecretsManager secret",
+  "bin": {
+    "sm2gh-secrets": "bin/sm2gh-secrets"
+  },
   "scripts": {
     "clobber": "npx projen clobber",
     "compile": "npx projen compile",
@@ -12,17 +16,17 @@
     "unbump": "npx projen unbump",
     "publish:github": "npx projen publish:github",
     "upgrade": "npx projen upgrade",
-    "upgrade-projen": "npx projen upgrade-projen",
     "default": "npx projen default",
     "watch": "npx projen watch",
     "package": "npx projen package",
     "eslint": "npx projen eslint",
+    "secrets:update": "npx projen secrets:update",
     "release": "npx projen release",
     "projen": "npx projen"
   },
   "devDependencies": {
     "@types/jest": "^27.0.1",
-    "@types/node": "^10.17.0",
+    "@types/node": "^14.17.0",
     "@typescript-eslint/eslint-plugin": "^4.31.0",
     "@typescript-eslint/parser": "^4.31.0",
     "eslint": "^7.32.0",
@@ -38,7 +42,14 @@
     "ts-jest": "^27.0.5",
     "typescript": "^4.4.2"
   },
+  "dependencies": {
+    "aws-sdk": "^2.985.0",
+    "yargs": "^17.1.1"
+  },
   "bundledDependencies": [],
+  "engines": {
+    "node": ">= 14.17.0"
+  },
   "main": "lib/index.js",
   "license": "Apache-2.0",
   "version": "0.0.0",

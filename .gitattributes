@@ -16,6 +16,7 @@
 /.projen/tasks.json              	linguist-generated
 /LICENSE                         	linguist-generated
 /package.json                    	linguist-generated
+/secrets.json                    	linguist-generated
 /tsconfig.eslint.json            	linguist-generated
 /tsconfig.jest.json              	linguist-generated
 /tsconfig.json                   	linguist-generated
