@@ -1,11 +1,14 @@
-import { spawnSync } from 'child_process';
-import * as readline from 'readline';
-import * as aws from 'aws-sdk';
+import * as clients from './clients';
 
 /**
  * Options for `updateSecrets`.
  */
 export interface UpdateSecretsOptions {
+  /**
+   * Clients.
+   */
+  readonly clients?: clients.Clients;
+
   /**
    * The name/id/arn of the SecretsManager secret to use.
    */
@@ -36,81 +39,47 @@ export interface UpdateSecretsOptions {
  * @param options Options
  */
 export async function updateSecrets(options: UpdateSecretsOptions) {
+  const secretId = options.secret;
+  const c = options.clients ?? clients.DEFAULTS;
+
   // if the secret id is an arn, extract the region from it
   let region = options.region;
-  if (!region && options.secret.startsWith('arn:')) {
-    region = options.secret.split(':')[3];
+  if (!region && secretId.startsWith('arn:')) {
+    region = secretId.split(':')[3];
   }
 
-  const sm = new aws.SecretsManager({ region });
-  let keys = options.keys ?? [];
-
-  const describeResult = await sm.describeSecret({ SecretId: options.secret }).promise();
-  const secretArn = describeResult.ARN!;
-
-  const repository: string = (() => {
-    if (options.repository) {
-      return options.repository;
-    }
-
-    const repo = JSON.parse((spawnSync('gh', ['repo', 'view', '--json', 'nameWithOwner'])).stdout);
-    return repo.nameWithOwner;
-  })();
-
-  const secretValue = await sm.getSecretValue({ SecretId: options.secret }).promise();
-  if (!secretValue.SecretString) {
-    throw new Error('no response from secrets manager');
-  }
-
-  const secrets: Record<string, string> = JSON.parse(secretValue.SecretString);
+  const repository: string = options.repository ?? c.getRepositoryName();
+  const secret = await c.getSecret(options.secret, { region });
 
   // if `keys` is specified, make sure all the keys exist before
   // actually performing any updates.
+  let keys = options.keys ?? [];
   if (keys.length > 0) {
     for (const requiredKey of keys) {
-      if (!(requiredKey in secrets)) {
-        throw new Error(`Cannot find key ${requiredKey} in ${secretArn}`);
+      if (!(requiredKey in secret.json)) {
+        throw new Error(`Secret "${secretId}" does not contain key "${requiredKey}"`);
       }
     }
   } else {
-    keys = Object.keys(secrets);
+    keys = Object.keys(secret.json);
   }
 
-  console.error(`FROM: ${secretArn}`);
-  console.error(`REPO: ${repository}`);
-  console.error(`KEYS: ${keys.join(',')}`);
-  console.error();
+  c.log(`FROM: ${secret.arn}`);
+  c.log(`REPO: ${repository}`);
+  c.log(`KEYS: ${keys.join(',')}`);
+  c.log();
 
   // ask user to confirm
-  if (!await confirmPrompt()) {
-    console.error('Cancelled by user');
+  if (!await c.confirmPrompt()) {
+    c.log('Cancelled by user');
     return;
   }
 
-  for (const [key, value] of Object.entries(secrets)) {
+  for (const [key, value] of Object.entries(secret.json)) {
     if (keys.length > 0 && !keys.includes(key)) {
       continue; // skip if key is not in "keys"
     }
 
-    const args = ['secret', 'set', '--repo', repository, key];
-    spawnSync('gh', args, { input: value, stdio: ['pipe', 'inherit', 'inherit'] });
+    c.storeSecret(repository, key, value);
   }
-}
-
-async function confirmPrompt(): Promise<boolean> {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
-  return new Promise(ok => {
-    rl.question('Confirm (Y/N)? ', answer => {
-      rl.close();
-      if (answer.toUpperCase() === 'Y') {
-        ok(true);
-      } else {
-        ok(false);
-      }
-    });
-  });
 }
