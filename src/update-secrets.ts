@@ -15,7 +15,7 @@ export interface UpdateSecretsOptions {
   readonly secret: string;
 
   /**
-   * AWS region to query,.
+   * AWS region to query.
    * @default - default region (e.g. set by `AWS_REGION`).
    */
   readonly region?: string;

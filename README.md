@@ -80,7 +80,7 @@ sm2gh-secrets -C secrets.json
 
 ## Contributing
 
-See our [Contribution Guide](CONTRIBUTING.md#security-issue-notifications) for more information.
+See our [Contribution Guide](CONTRIBUTING.md) for more information.
 
 ## Security
 
