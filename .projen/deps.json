@@ -74,6 +74,7 @@
     },
     {
       "name": "yargs",
+      "version": "17.1.1",
       "type": "runtime"
     }
   ],

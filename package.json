@@ -44,7 +44,7 @@
   },
   "dependencies": {
     "aws-sdk": "^2.986.0",
-    "yargs": "^17.1.1"
+    "yargs": "17.1.1"
   },
   "bundledDependencies": [],
   "engines": {

@@ -26,12 +26,19 @@ export interface UpdateSecretsOptions {
    */
   readonly repository?: string;
 
-
   /**
-   * Only update the specified keys
-   * @default [] Updates all the keys
+   * The secret keys to update. To update all keys, set `all` to `true` and leave `keys` empty.
+   *
+   * @example `['GITHUB_TOKEN', 'GITHUB_TOKEN_SECRET']`
+   * @default []
    */
   readonly keys?: string[];
+
+  /**
+   * Update all keys. If this is set to `true`, `keys` will be ignored.
+   * @default false
+   */
+  readonly allKeys?: boolean;
 }
 
 /**
@@ -50,18 +57,34 @@ export async function updateSecrets(options: UpdateSecretsOptions) {
 
   const repository: string = options.repository ?? c.getRepositoryName();
   const secret = await c.getSecret(options.secret, { region });
+  const keys = options.keys ?? [];
 
-  // if `keys` is specified, make sure all the keys exist before
-  // actually performing any updates.
-  let keys = options.keys ?? [];
-  if (keys.length > 0) {
-    for (const requiredKey of keys) {
-      if (!(requiredKey in secret.json)) {
-        throw new Error(`Secret "${secretId}" does not contain key "${requiredKey}"`);
-      }
+  if (typeof(secret.json) !== 'object') {
+    throw new Error(`Secret "${secret.arn}" is not an object`);
+  }
+
+  if (options.allKeys === undefined && options.keys === undefined) {
+    throw new Error('Either `all` or `keys` must be set');
+  }
+
+  if (options.allKeys) {
+    if (keys.length > 0) {
+      throw new Error('Cannot set both `all` and `keys`');
     }
-  } else {
-    keys = Object.keys(secret.json);
+
+    // remove "*" and replace with all the keys from the secret
+    keys.push(...Object.keys(secret.json));
+  }
+
+  if (keys.length === 0) {
+    throw new Error('No keys to update');
+  }
+
+  // verify that all the keys exist in the secret
+  for (const requiredKey of keys) {
+    if (!(requiredKey in secret.json)) {
+      throw new Error(`Secret "${secretId}" does not contain key "${requiredKey}"`);
+    }
   }
 
   c.log(`FROM: ${secret.arn}`);

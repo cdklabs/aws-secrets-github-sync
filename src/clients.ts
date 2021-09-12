@@ -7,7 +7,7 @@ export interface SecretOptions {
 }
 
 export interface Clients {
-  getSecret(secretId: string, options: SecretOptions): Promise<Secret>;
+  getSecret(secretId: string, options?: SecretOptions): Promise<Secret>;
   confirmPrompt(): Promise<boolean>;
   getRepositoryName(): string;
   storeSecret(repository: string, key: string, value: string): void;
@@ -54,12 +54,19 @@ function confirmPrompt(): Promise<boolean> {
   });
 }
 
-async function getSecret(secretId: string, options: SecretOptions): Promise<Secret> {
+async function getSecret(secretId: string, options: SecretOptions = {}): Promise<Secret> {
   const client = new aws.SecretsManager({ region: options.region });
   const result = await client.getSecretValue({ SecretId: secretId }).promise();
+  let json;
+  try {
+    json = JSON.parse(result.SecretString!);
+  } catch (e) {
+    throw new Error(`Secret "${secretId}" must be a JSON object`);
+  }
+
   return {
     arn: result.ARN!,
-    json: JSON.parse(result.SecretString!),
+    json: json,
   };
 }
 

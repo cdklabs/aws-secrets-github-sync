@@ -6,7 +6,7 @@ const project = new TypeScriptProject({
   defaultReleaseBranch: 'main',
   name: 'sm2gh-secrets',
   description: 'Update GitHub repository secrets from an AWS SecretsManager secret',
-  deps: ['aws-sdk', 'yargs'],
+  deps: ['aws-sdk', 'yargs@17.1.1'],
   minNodeVersion: '14.17.0',
   projenUpgradeSecret: PROJEN_UPGRADE_SECRET,
   releaseToNpm: false, // still private
@@ -15,7 +15,7 @@ const project = new TypeScriptProject({
 //----------------------------------------------------
 // very meta (should be part of projen)
 
-const secretsConfig = 'secrets.json';
+const secretsConfig = 'sm2gh.json';
 new JsonFile(project, secretsConfig, {
   obj: {
     secret: 'publishing-secrets',
@@ -26,7 +26,7 @@ new JsonFile(project, secretsConfig, {
 
 project.addTask('secrets:update', {
   description: 'Update this GitHub repository\'s secrets from AWS SecretsManager',
-  exec: `bin/sm2gh-secrets -C ${secretsConfig}`,
+  exec: `bin/sm2gh-secrets --config ${secretsConfig}`,
 });
 
 //----------------------------------------------------

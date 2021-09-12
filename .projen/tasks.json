@@ -213,7 +213,7 @@
       "description": "Update this GitHub repository's secrets from AWS SecretsManager",
       "steps": [
         {
-          "exec": "bin/sm2gh-secrets -C secrets.json"
+          "exec": "bin/sm2gh-secrets --config sm2gh.json"
         }
       ]
     },
