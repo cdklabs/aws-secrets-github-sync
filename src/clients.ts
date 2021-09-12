@@ -27,8 +27,13 @@ function log(text: string = '') {
 }
 
 function getRepositoryName(): string {
-  const repo = JSON.parse(spawnSync('gh', ['repo', 'view', '--json', 'nameWithOwner']).stdout);
-  return repo.nameWithOwner;
+  const output = spawnSync('gh', ['repo', 'view', '--json', 'nameWithOwner'], { stdio: ['ignore', 'pipe', 'inherit'] }).stdout.toString('utf-8');
+  try {
+    const repo = JSON.parse(output);
+    return repo.nameWithOwner;
+  } catch (e) {
+    throw new Error(`Unable to determine repository name: ${output}`);
+  }
 }
 
 function storeSecret(repository: string, name: string, value: string): void {
