@@ -12,10 +12,10 @@ async function main() {
     .option('all', { alias: 'A', describe: 'Update all keys', type: 'boolean' })
     .option('config', { alias: 'c', describe: 'Reads options from a configuration file' })
     .option('debug', { type: 'boolean', describe: 'Show debugging information', default: false })
+    .option('yes', { type: 'boolean', describe: 'Skip confirmation prompt', default: false, alias: 'y' })
     .example('$0 -s my-secrets --all', 'Updates all secrets from AWS Secrets Manager to the current github repository (region can be omitted by specifying an ARN)')
     .example('$0 -s my-secrets -k TWINE_USERNAME -k TWINE_PASSWORD', 'Only updates two secrets')
     .example('$0 -c sm2gh.json', 'Read settings from sm2gh.json')
-    .boolean('confirm')
     .array('keys')
     .string('keys')
     .config('config') // allow reading from a config file
@@ -31,6 +31,7 @@ async function main() {
     repository: argv.repo,
     allKeys: argv.all,
     keys: argv.keys,
+    confirm: !argv.yes,
   });
 }
 
