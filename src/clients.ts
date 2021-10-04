@@ -28,6 +28,7 @@ function log(text: string = '') {
 
 function getRepositoryName(): string {
   const output = spawnSync('gh', ['repo', 'view', '--json', 'nameWithOwner'], { stdio: ['ignore', 'pipe', 'inherit'] }).stdout.toString('utf-8');
+
   try {
     const repo = JSON.parse(output);
     return repo.nameWithOwner;

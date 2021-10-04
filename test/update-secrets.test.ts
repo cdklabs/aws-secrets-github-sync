@@ -152,3 +152,15 @@ test('useful error if secret is not an object', async () => {
     allKeys: true,
   })).rejects.toThrow('Secret "secret-arn" is not an object');
 });
+
+test('confirm: false can disable interactive confirmation', async () => {
+  await updateSecrets({
+    clients: mocks,
+    secret: 'my-secret-name',
+    allKeys: true,
+    confirm: false,
+  });
+
+  expect(mocks.confirmPrompt).not.toBeCalled();
+  expect(mocks.storeSecret).toBeCalledTimes(Object.keys(secretJson).length);
+});

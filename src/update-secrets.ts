@@ -39,6 +39,12 @@ export interface UpdateSecretsOptions {
    * @default false
    */
   readonly allKeys?: boolean;
+
+  /**
+   * Display a confirmation prompt before updating the secrets.
+   * @default true
+   */
+  readonly confirm?: boolean;
 }
 
 /**
@@ -93,7 +99,8 @@ export async function updateSecrets(options: UpdateSecretsOptions) {
   c.log();
 
   // ask user to confirm
-  if (!await c.confirmPrompt()) {
+  const confirm = options.confirm ?? true;
+  if (confirm && !await c.confirmPrompt()) {
     c.log('Cancelled by user');
     return;
   }
