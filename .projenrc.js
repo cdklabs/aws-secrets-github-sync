@@ -20,6 +20,7 @@ new JsonFile(project, secretsConfig, {
   obj: {
     secret: 'publishing-secrets',
     region: 'us-east-1',
+    prune: true,
     keys: ['NPM_TOKEN', PROJEN_UPGRADE_SECRET],
   },
 });

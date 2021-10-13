@@ -16,6 +16,8 @@ beforeEach(() => {
     getSecret: jest.fn().mockReturnValue({ arn: 'secret-arn', json: secretJson, region: 'us-east-1' }),
     confirmPrompt: jest.fn().mockReturnValue(true),
     storeSecret: jest.fn(),
+    listSecrets: jest.fn().mockReturnValue(['PROJEN_GITHUB_TOKEN', 'TWINE_USERNAME', 'ANOTHER_SECRET', 'BOOM_BAM']),
+    removeSecret: jest.fn(),
     log: jest.fn(),
   };
 });
@@ -72,6 +74,8 @@ test('"allKeys" will update all secrets', async () => {
   for (const [key, secret] of Object.entries(secretJson)) {
     expect(mocks.storeSecret).toBeCalledWith('my-owner/my-repo', key, secret);
   }
+  expect(mocks.listSecrets).toBeCalled();
+  expect(mocks.removeSecret).not.toBeCalled();
 });
 
 test('"allKeys" is okay with an empty "keys"', async () => {
@@ -83,6 +87,8 @@ test('"allKeys" is okay with an empty "keys"', async () => {
   });
 
   expect(mocks.storeSecret).toBeCalledTimes(Object.keys(secretJson).length);
+  expect(mocks.listSecrets).toBeCalled();
+  expect(mocks.removeSecret).not.toBeCalled();
 });
 
 test('region extracted from arn', async () => {
@@ -95,6 +101,8 @@ test('region extracted from arn', async () => {
   });
 
   expect(mocks.getSecret).toBeCalledWith(arn, { region: 'us-east-1' });
+  expect(mocks.listSecrets).toBeCalled();
+  expect(mocks.removeSecret).not.toBeCalled();
 });
 
 test('"keys" can be used to specify which keys to store', async () => {
@@ -107,6 +115,8 @@ test('"keys" can be used to specify which keys to store', async () => {
   expect(mocks.storeSecret).toBeCalledTimes(2);
   expect(mocks.storeSecret).toBeCalledWith('my-owner/my-repo', 'NPM_TOKEN', 'my-npm-token');
   expect(mocks.storeSecret).toBeCalledWith('my-owner/my-repo', 'TWINE_USERNAME', 'my-twine-username');
+  expect(mocks.listSecrets).toBeCalled();
+  expect(mocks.removeSecret).not.toBeCalled();
 });
 
 test('fails if one of the keys does not exist in the secret', async () => {
@@ -127,6 +137,7 @@ test('stops if user did not confirm', async () => {
   });
 
   expect(mocks.storeSecret).not.toBeCalled();
+  expect(mocks.removeSecret).not.toBeCalled();
 });
 
 test('explicit repository name can be specified', async () => {
@@ -140,6 +151,8 @@ test('explicit repository name can be specified', async () => {
   expect(mocks.storeSecret).toBeCalledTimes(2);
   expect(mocks.storeSecret).toBeCalledWith('foo/bar', 'NPM_TOKEN', 'my-npm-token');
   expect(mocks.storeSecret).toBeCalledWith('foo/bar', 'TWINE_USERNAME', 'my-twine-username');
+  expect(mocks.listSecrets).toBeCalled();
+  expect(mocks.removeSecret).not.toBeCalled();
 });
 
 test('useful error if secret is not an object', async () => {
@@ -163,4 +176,20 @@ test('confirm: false can disable interactive confirmation', async () => {
 
   expect(mocks.confirmPrompt).not.toBeCalled();
   expect(mocks.storeSecret).toBeCalledTimes(Object.keys(secretJson).length);
+  expect(mocks.listSecrets).toBeCalled();
+  expect(mocks.removeSecret).not.toBeCalled();
+});
+
+test('prune will remove keys', async () => {
+  await updateSecrets({
+    clients: mocks,
+    secret: 'my-secret-name',
+    allKeys: true,
+    prune: true,
+  });
+
+  expect(mocks.storeSecret).toBeCalledTimes(Object.keys(secretJson).length);
+  expect(mocks.listSecrets).toBeCalledWith('my-owner/my-repo');
+  expect(mocks.removeSecret).toBeCalledWith('my-owner/my-repo', 'ANOTHER_SECRET');
+  expect(mocks.removeSecret).toBeCalledWith('my-owner/my-repo', 'BOOM_BAM');
 });
