@@ -1,5 +1,5 @@
 {
-  "name": "sm2gh-secrets",
+  "name": "@cdklabs/sm2gh-secrets",
   "description": "Update GitHub repository secrets from an AWS SecretsManager secret",
   "bin": {
     "sm2gh-secrets": "bin/sm2gh-secrets"
@@ -15,6 +15,7 @@
     "bump": "npx projen bump",
     "unbump": "npx projen unbump",
     "publish:github": "npx projen publish:github",
+    "publish:npm": "npx projen publish:npm",
     "default": "npx projen default",
     "watch": "npx projen watch",
     "package": "npx projen package",
@@ -52,6 +53,9 @@
   },
   "main": "lib/index.js",
   "license": "Apache-2.0",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/"
+  },
   "version": "0.0.0",
   "jest": {
     "testMatch": [
