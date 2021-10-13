@@ -51,6 +51,14 @@ export interface UpdateSecretsOptions {
    * @default true
    */
   readonly confirm?: boolean;
+
+  /**
+   * Delete any secrets from the repository that don't correspond to secret keys
+   * in the updated secret. This effectively makes sure that the repo only includes
+   * secrets that come from AWS Secrets Manager.
+   * @default false
+   */
+  readonly prune?: boolean;
 }
 
 /**
@@ -70,6 +78,7 @@ export async function updateSecrets(options: UpdateSecretsOptions) {
   const repository: string = options.repository ?? c.getRepositoryName();
   const secret = await c.getSecret(options.secret, { region, profile: options.profile });
   const keys = options.keys ?? [];
+  const prune = options.prune ?? false;
 
   if (typeof(secret.json) !== 'object') {
     throw new Error(`Secret "${secret.arn}" is not an object`);
@@ -99,9 +108,22 @@ export async function updateSecrets(options: UpdateSecretsOptions) {
     }
   }
 
-  c.log(`FROM: ${secret.arn}`);
-  c.log(`REPO: ${repository}`);
-  c.log(`KEYS: ${keys.join(',')}`);
+  // find all the secrets in the repo that don't correspond to keys in the secret
+  const existingKeys = c.listSecrets(repository);
+  const oldKeys = existingKeys.filter(key => !keys.includes(key));
+
+  c.log(`FROM  : ${secret.arn}`);
+  c.log(`REPO  : ${repository}`);
+  c.log(`UDPATE: ${keys.join(',')}`);
+
+  if (oldKeys.length > 0) {
+    if (prune) {
+      c.log(`REMOVE: ${oldKeys.join(',')}`);
+    } else {
+      c.log(`SKIP  : ${oldKeys.join(',')} (use --prune to remove)`);
+    }
+  }
+
   c.log();
 
   // ask user to confirm
@@ -117,5 +139,12 @@ export async function updateSecrets(options: UpdateSecretsOptions) {
     }
 
     c.storeSecret(repository, key, value);
+  }
+
+  // prune keys that are not in the secret
+  if (prune) {
+    for (const key of oldKeys) {
+      c.removeSecret(repository, key);
+    }
   }
 }

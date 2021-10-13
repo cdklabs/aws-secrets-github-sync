@@ -21,6 +21,8 @@ export interface Clients {
   confirmPrompt(): Promise<boolean>;
   getRepositoryName(): string;
   storeSecret(repository: string, key: string, value: string): void;
+  listSecrets(repository: string): string[];
+  removeSecret(repository: string, key: string): void;
   log(text?: string): void;
 }
 
@@ -29,6 +31,8 @@ export const DEFAULTS: Clients = {
   confirmPrompt,
   getRepositoryName,
   storeSecret,
+  listSecrets,
+  removeSecret,
   log,
 };
 
@@ -50,6 +54,17 @@ function getRepositoryName(): string {
 function storeSecret(repository: string, name: string, value: string): void {
   const args = ['secret', 'set', '--repo', repository, name];
   spawnSync('gh', args, { input: value, stdio: ['pipe', 'inherit', 'inherit'] });
+}
+
+function listSecrets(repository: string): string[] {
+  const args = ['secret', 'list', '--repo', repository];
+  const stdout = spawnSync('gh', args, { stdio: ['ignore', 'pipe', 'inherit'] }).stdout.toString('utf-8').trim();
+  return stdout.split('\n').map(line => line.split('\t')[0]);
+}
+
+function removeSecret(repository: string, key: string): void {
+  const args = ['secret', 'remove', '--repo', repository, key];
+  spawnSync('gh', args, { stdio: ['ignore', 'inherit', 'inherit'] });
 }
 
 function confirmPrompt(): Promise<boolean> {
