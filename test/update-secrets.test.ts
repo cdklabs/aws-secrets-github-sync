@@ -204,3 +204,18 @@ test('update secrets accepts a profile', async () => {
 
   expect(mocks.getSecret).toBeCalledWith('my-secret-name', { profile: 'my-profile' });
 });
+
+test('"keep" can be used to retain keys depite prune', async () => {
+  await updateSecrets({
+    clients: mocks,
+    secret: 'my-secret-name',
+    allKeys: true,
+    prune: true,
+    keep: ['BOOM_BAM', 'LALALALA'],
+  });
+
+  expect(mocks.storeSecret).toBeCalledTimes(Object.keys(secretJson).length);
+  expect(mocks.listSecrets).toBeCalledWith('my-owner/my-repo');
+  expect(mocks.removeSecret).toBeCalledWith('my-owner/my-repo', 'ANOTHER_SECRET');
+  expect(mocks.removeSecret).not.toBeCalledWith('my-owner/my-repo', 'BOOM_BAM');
+});

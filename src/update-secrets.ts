@@ -59,6 +59,13 @@ export interface UpdateSecretsOptions {
    * @default false
    */
   readonly prune?: boolean;
+
+  /**
+   * Names of secret keys to skip from prune.
+   *
+   * @default []
+   */
+  readonly keep?: string[];
 }
 
 /**
@@ -79,6 +86,7 @@ export async function updateSecrets(options: UpdateSecretsOptions) {
   const secret = await c.getSecret(options.secret, { region, profile: options.profile });
   const keys = options.keys ?? [];
   const prune = options.prune ?? false;
+  const keep = options.keep ?? [];
 
   if (typeof(secret.json) !== 'object') {
     throw new Error(`Secret "${secret.arn}" is not an object`);
@@ -110,17 +118,24 @@ export async function updateSecrets(options: UpdateSecretsOptions) {
 
   // find all the secrets in the repo that don't correspond to keys in the secret
   const existingKeys = c.listSecrets(repository);
-  const oldKeys = existingKeys.filter(key => !keys.includes(key));
+  const pruneCandidates = existingKeys.filter(key => !keys.includes(key));
+  const keysToPrune = pruneCandidates.filter(key => !keep.includes(key));
+  const keysToKeep = pruneCandidates.filter(key => keep.includes(key));
 
   c.log(`FROM  : ${secret.arn}`);
   c.log(`REPO  : ${repository}`);
   c.log(`UDPATE: ${keys.join(',')}`);
 
-  if (oldKeys.length > 0) {
+  if (pruneCandidates.length > 0) {
     if (prune) {
-      c.log(`REMOVE: ${oldKeys.join(',')}`);
+      if (keysToPrune.length > 0) {
+        c.log(`PRUNE : ${keysToPrune.join(',')}`);
+      }
+      if (keysToKeep.length > 0) {
+        c.log(`KEEP  : ${keysToKeep.join(',')}`);
+      }
     } else {
-      c.log(`SKIP  : ${oldKeys.join(',')} (use --prune to remove)`);
+      c.log(`SKIP  : ${pruneCandidates.join(',')} (use --prune to remove)`);
     }
   }
 
@@ -143,7 +158,7 @@ export async function updateSecrets(options: UpdateSecretsOptions) {
 
   // prune keys that are not in the secret
   if (prune) {
-    for (const key of oldKeys) {
+    for (const key of keysToPrune) {
       c.removeSecret(repository, key);
     }
   }
