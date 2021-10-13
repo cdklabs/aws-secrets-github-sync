@@ -55,14 +55,24 @@ Options:
 
 * `--help` Show help
 * `-s`, `--secret` - The secret ID or ARN of the AWS Secrets Manager secret
-* `-k`, `--keys` (array) - The set of keys to update. Can be invoked multiple times (e.g. `-k NPM_TOKEN -k FOOBAR`). If not specified, all keys from the secret will be stored in the repository.
-* `--prune` - Will delete any secret keys from the repository that are not in AWS Secrets Manager. If this is not set, old keys will be retained.
+* `-k`, `--keys` (array) - The set of keys to update. Can be invoked multiple
+  times (e.g. `-k NPM_TOKEN -k FOOBAR`). If not specified, all keys from the
+  secret will be stored in the repository.
+* `--prune` - Will delete any secret keys from the repository that are not in
+  AWS Secrets Manager (and not specified in `--keep`). If this is not set, old
+  keys will be retained.
+* `--keep` - Keys to keep instead of pruning (can appear multiple times).
 * `--yes` - Don't ask for user confirmation before the update.
-* `-r`, `--repo` - The GitHub full repository name (e.g. `cdklabs/sm2gh-secrets`). If this is not specified, we will try to resolve the repo from the current git settings.
-* `-R`, `--region` - The AWS region to read the secret from. If this is not specified, `AWS_REGION` will be used. If the secret is an ARN, we will resolve the region from the ARN.
+* `-r`, `--repo` - The GitHub full repository name (e.g.
+  `cdklabs/sm2gh-secrets`). If this is not specified, we will try to resolve the
+  repo from the current git settings.
+* `-R`, `--region` - The AWS region to read the secret from. If this is not
+  specified, `AWS_REGION` will be used. If the secret is an ARN, we will resolve
+  the region from the ARN.
 * `--profile` - specify AWS credentials profile to use.
 
-You can also specify all options via a configuration file. Here's an example `secrets.json`:
+You can also specify all options via a configuration file. Here's an example
+`secrets.json`:
 
 ```json
 {
