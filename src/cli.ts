@@ -11,6 +11,7 @@ async function main() {
     .option('keys', { alias: 'k', describe: 'Which keys to update (to update all keys use --all)', type: 'array' })
     .option('all', { alias: 'A', describe: 'Update all keys', type: 'boolean' })
     .option('config', { alias: 'c', describe: 'Reads options from a configuration file' })
+    .option('profile', { describe: 'AWS credentials profile to use', type: 'string' })
     .option('debug', { type: 'boolean', describe: 'Show debugging information', default: false })
     .option('yes', { type: 'boolean', describe: 'Skip confirmation prompt', default: false, alias: 'y' })
     .example('$0 -s my-secrets --all', 'Updates all secrets from AWS Secrets Manager to the current github repository (region can be omitted by specifying an ARN)')
@@ -32,6 +33,7 @@ async function main() {
     allKeys: argv.all,
     keys: argv.keys,
     confirm: !argv.yes,
+    profile: argv.profile,
   });
 }
 

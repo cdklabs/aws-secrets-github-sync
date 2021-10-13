@@ -164,3 +164,14 @@ test('confirm: false can disable interactive confirmation', async () => {
   expect(mocks.confirmPrompt).not.toBeCalled();
   expect(mocks.storeSecret).toBeCalledTimes(Object.keys(secretJson).length);
 });
+
+test('update secrets accepts a profile', async () => {
+  await updateSecrets({
+    clients: mocks,
+    allKeys: true,
+    secret: 'my-secret-name',
+    profile: 'my-profile',
+  });
+
+  expect(mocks.getSecret).toBeCalledWith('my-secret-name', { profile: 'my-profile' });
+});
