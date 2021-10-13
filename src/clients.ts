@@ -2,8 +2,18 @@ import { spawnSync } from 'child_process';
 import * as readline from 'readline';
 import * as aws from 'aws-sdk';
 
+/**
+ * Options for `getSecret`.
+ */
 export interface SecretOptions {
+  /**
+   * The AWS region to read the secret from.
+   */
   readonly region?: string;
+  /**
+   * Credential profile to use.
+   */
+  readonly profile?: string;
 }
 
 export interface Clients {
@@ -61,7 +71,8 @@ function confirmPrompt(): Promise<boolean> {
 }
 
 async function getSecret(secretId: string, options: SecretOptions = {}): Promise<Secret> {
-  const client = new aws.SecretsManager({ region: options.region });
+  const credentials = options.profile ? new aws.SharedIniFileCredentials({ profile: options.profile }) : undefined;
+  const client = new aws.SecretsManager({ region: options.region, credentials });
   const result = await client.getSecretValue({ SecretId: secretId }).promise();
   let json;
   try {
