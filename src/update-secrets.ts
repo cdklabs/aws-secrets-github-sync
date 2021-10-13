@@ -21,6 +21,12 @@ export interface UpdateSecretsOptions {
   readonly region?: string;
 
   /**
+   * Use a profile in the shared credentials file.
+   * @default - default credential resolution
+   */
+  readonly profile?: string;
+
+  /**
    * The full name of the github repository.
    * @default - the current repository
    */
@@ -70,7 +76,7 @@ export async function updateSecrets(options: UpdateSecretsOptions) {
   }
 
   const repository: string = options.repository ?? c.getRepositoryName();
-  const secret = await c.getSecret(options.secret, { region });
+  const secret = await c.getSecret(options.secret, { region, profile: options.profile });
   const keys = options.keys ?? [];
   const prune = options.prune ?? false;
 

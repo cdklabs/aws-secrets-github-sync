@@ -11,6 +11,7 @@ async function main() {
     .option('keys', { alias: 'k', describe: 'Which keys to update (to update all keys use --all)', type: 'array' })
     .option('all', { alias: 'A', describe: 'Update all keys', type: 'boolean' })
     .option('config', { alias: 'c', describe: 'Reads options from a configuration file' })
+    .option('profile', { describe: 'AWS credentials profile to use', type: 'string' })
     .option('debug', { type: 'boolean', describe: 'Show debugging information', default: false })
     .option('prune', { type: 'boolean', describe: 'Remove old keys from GitHub', default: false })
     .option('yes', { type: 'boolean', describe: 'Skip confirmation prompt', default: false, alias: 'y' })
@@ -34,6 +35,7 @@ async function main() {
     keys: argv.keys,
     confirm: !argv.yes,
     prune: argv.prune,
+    profile: argv.profile,
   });
 }
 

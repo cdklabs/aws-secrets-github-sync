@@ -193,3 +193,14 @@ test('prune will remove keys', async () => {
   expect(mocks.removeSecret).toBeCalledWith('my-owner/my-repo', 'ANOTHER_SECRET');
   expect(mocks.removeSecret).toBeCalledWith('my-owner/my-repo', 'BOOM_BAM');
 });
+
+test('update secrets accepts a profile', async () => {
+  await updateSecrets({
+    clients: mocks,
+    allKeys: true,
+    secret: 'my-secret-name',
+    profile: 'my-profile',
+  });
+
+  expect(mocks.getSecret).toBeCalledWith('my-secret-name', { profile: 'my-profile' });
+});
