@@ -22,6 +22,8 @@ jobs:
         run: |-
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
+      - name: Install Semgrep
+        run: python3 -m pip install semgrep
       - name: Setup Node.js
         uses: actions/setup-node@v2.2.0
         with:

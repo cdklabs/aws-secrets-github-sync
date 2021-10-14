@@ -21,6 +21,7 @@
     "package": "npx projen package",
     "eslint": "npx projen eslint",
     "secrets:update": "npx projen secrets:update",
+    "semgrep": "npx projen semgrep",
     "release": "npx projen release",
     "upgrade": "npx projen upgrade",
     "projen": "npx projen"

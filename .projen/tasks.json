@@ -83,6 +83,9 @@
         },
         {
           "spawn": "package"
+        },
+        {
+          "spawn": "semgrep"
         }
       ]
     },
@@ -214,6 +217,16 @@
           "exec": "bin/sm2gh-secrets --config sm2gh.json"
         }
       ]
+    },
+    "semgrep": {
+      "name": "semgrep",
+      "description": "Static analysis",
+      "steps": [
+        {
+          "exec": "semgrep --config p/typescript"
+        }
+      ],
+      "condition": "which semgrep"
     },
     "release": {
       "name": "release",

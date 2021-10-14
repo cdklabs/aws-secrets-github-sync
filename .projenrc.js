@@ -11,6 +11,12 @@ const project = new TypeScriptProject({
   projenUpgradeSecret: PROJEN_UPGRADE_SECRET,
   releaseToNpm: true,
   npmRegistryUrl: 'https://npm.pkg.github.com',
+  workflowBootstrapSteps: [
+    {
+      name: 'Install Semgrep',
+      run: 'python3 -m pip install semgrep',
+    },
+  ],
 });
 
 //----------------------------------------------------
@@ -32,5 +38,13 @@ project.addTask('secrets:update', {
 });
 
 //----------------------------------------------------
+
+const semgrep = project.addTask('semgrep', {
+  description: 'Static analysis',
+  exec: 'semgrep --config p/typescript',
+  condition: 'which semgrep', // only run if semgrep is installed
+});
+
+project.buildTask.spawn(semgrep);
 
 project.synth();
