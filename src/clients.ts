@@ -2,6 +2,9 @@ import { spawnSync } from 'child_process';
 import * as readline from 'readline';
 import * as aws from 'aws-sdk';
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const PKG = require('../package.json');
+
 /**
  * Options for `getSecret`.
  */
@@ -87,7 +90,12 @@ function confirmPrompt(): Promise<boolean> {
 
 async function getSecret(secretId: string, options: SecretOptions = {}): Promise<Secret> {
   const credentials = options.profile ? new aws.SharedIniFileCredentials({ profile: options.profile }) : undefined;
-  const client = new aws.SecretsManager({ region: options.region, credentials });
+  const client = new aws.SecretsManager({
+    region: options.region,
+    credentials: credentials,
+    customUserAgent: `${PKG.name}/${PKG.version}`,
+  });
+
   const result = await client.getSecretValue({ SecretId: secretId }).promise();
   let json;
   try {

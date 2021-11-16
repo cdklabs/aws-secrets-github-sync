@@ -92,6 +92,13 @@ And then, execute:
 sm2gh-secrets -C secrets.json
 ```
 
+## Auditing
+
+All AWS Secrets Manager activity is [recorded in AWS
+CloudTrail](https://docs.aws.amazon.com/secretsmanager/latest/userguide/monitoring.html).
+Requests from sm2gh-secrets are tagged with a user-agent of
+`sm2gh-secrets/$version` so it is possible to find them as needed.
+
 ## Contributing
 
 See our [Contribution Guide](CONTRIBUTING.md) for more information.
