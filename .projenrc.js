@@ -45,6 +45,6 @@ const semgrep = project.addTask('semgrep', {
   condition: 'which semgrep', // only run if semgrep is installed
 });
 
-project.buildTask.spawn(semgrep);
+project.postCompileTask.spawn(semgrep);
 
 project.synth();
