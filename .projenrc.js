@@ -11,7 +11,7 @@ const project = new TypeScriptProject({
   authorOrganization: true,
   description: 'Update GitHub repository secrets from an AWS SecretsManager secret',
   deps: ['aws-sdk', 'yargs@17.1.1'],
-  minNodeVersion: '14.17.0',
+  minNodeVersion: '12.13.0',
   projenUpgradeSecret: PROJEN_UPGRADE_SECRET,
   releaseToNpm: true,
   workflowBootstrapSteps: [
