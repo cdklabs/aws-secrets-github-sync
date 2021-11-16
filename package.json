@@ -1,6 +1,10 @@
 {
   "name": "aws-secrets-github-sync",
   "description": "Update GitHub repository secrets from an AWS SecretsManager secret",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cdklabs/aws-secrets-github-sync.git"
+  },
   "bin": {
     "aws-secrets-github-sync": "bin/aws-secrets-github-sync"
   },
@@ -26,6 +30,11 @@
     "upgrade": "npx projen upgrade",
     "watch": "npx projen watch",
     "projen": "npx projen"
+  },
+  "author": {
+    "name": "Amazon Web Services",
+    "email": "aws-cdk-dev@amazon.com",
+    "organization": true
   },
   "devDependencies": {
     "@types/jest": "^27.0.2",

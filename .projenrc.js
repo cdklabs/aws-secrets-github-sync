@@ -5,6 +5,10 @@ const PROJEN_UPGRADE_SECRET = 'PROJEN_GITHUB_TOKEN';
 const project = new TypeScriptProject({
   defaultReleaseBranch: 'main',
   name: 'aws-secrets-github-sync',
+  repository: 'https://github.com/cdklabs/aws-secrets-github-sync.git',
+  authorEmail: 'aws-cdk-dev@amazon.com',
+  authorName: 'Amazon Web Services',
+  authorOrganization: true,
   description: 'Update GitHub repository secrets from an AWS SecretsManager secret',
   deps: ['aws-sdk', 'yargs@17.1.1'],
   minNodeVersion: '14.17.0',
