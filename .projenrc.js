@@ -4,7 +4,7 @@ const PROJEN_UPGRADE_SECRET = 'PROJEN_GITHUB_TOKEN';
 
 const project = new TypeScriptProject({
   defaultReleaseBranch: 'main',
-  name: 'sm2gh-secrets',
+  name: 'aws-secrets-github-sync',
   description: 'Update GitHub repository secrets from an AWS SecretsManager secret',
   deps: ['aws-sdk', 'yargs@17.1.1'],
   minNodeVersion: '14.17.0',
@@ -33,7 +33,7 @@ new JsonFile(project, secretsConfig, {
 
 project.addTask('secrets:update', {
   description: 'Update this GitHub repository\'s secrets from AWS SecretsManager',
-  exec: `bin/sm2gh-secrets --config ${secretsConfig}`,
+  exec: `bin/aws-secrets-github-sync --config ${secretsConfig}`,
 });
 
 //----------------------------------------------------

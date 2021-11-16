@@ -1,4 +1,4 @@
-# sm2gh-secrets
+# aws-secrets-github-sync
 
 > Updates GitHub secrets from AWS Secrets Manager.
 
@@ -19,7 +19,7 @@ This tool is published as an npm module, so it can be either installed locally
 or globally via:
 
 ```shell
-npm i -g sm2gh-secrets
+npm i -g aws-secrets-github-sync
 ```
 
 Or any other npm package manager such as yarn, pnpm, etc.
@@ -53,7 +53,7 @@ it and store it in your GitHub repository.
 This can be either done via a config file or via the command line.
 
 ```shell
-sm2gh-secrets -s SECRET [OPTIONS]
+aws-secrets-github-sync -s SECRET [OPTIONS]
 ```
 
 Options:
@@ -69,7 +69,7 @@ Options:
 * `--keep` - Keys to keep instead of pruning (can appear multiple times).
 * `--yes` - Don't ask for user confirmation before the update.
 * `-r`, `--repo` - The GitHub full repository name (e.g.
-  `cdklabs/sm2gh-secrets`). If this is not specified, we will try to resolve the
+  `cdklabs/aws-secrets-github-sync`). If this is not specified, we will try to resolve the
   repo from the current git settings.
 * `-R`, `--region` - The AWS region to read the secret from. If this is not
   specified, `AWS_REGION` will be used. If the secret is an ARN, we will resolve
@@ -94,15 +94,15 @@ You can also specify all options via a configuration file. Here's an example
 And then, execute:
 
 ```shell
-sm2gh-secrets -C secrets.json
+aws-secrets-github-sync -C secrets.json
 ```
 
 ## Auditing
 
 All AWS Secrets Manager activity is [recorded in AWS
 CloudTrail](https://docs.aws.amazon.com/secretsmanager/latest/userguide/monitoring.html).
-Requests from sm2gh-secrets are tagged with a user-agent of
-`sm2gh-secrets/$version` so it is possible to find them as needed.
+Requests from aws-secrets-github-sync are tagged with a user-agent of
+`aws-secrets-github-sync/$version` so it is possible to find them as needed.
 
 ## Contributing
 

@@ -33,7 +33,7 @@
          [CREDENTIALS: AWS]                                                   [CREDENTIALS: gh login]
               │                                                                   │
               │         ┌──────────────────────────────────────────────────┐      │
-              │         │  $ sm2gh-secrets                                 │      │
+              │         │  $ aws-secrets-github-sync                       │      │
               │         │      --secret arn:aws:...:publishing-secret      │      │
               └─────────┤      --all                                       ├──────┘
                         │      --prune                                     │

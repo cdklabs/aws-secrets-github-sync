@@ -1,8 +1,8 @@
 {
-  "name": "sm2gh-secrets",
+  "name": "aws-secrets-github-sync",
   "description": "Update GitHub repository secrets from an AWS SecretsManager secret",
   "bin": {
-    "sm2gh-secrets": "bin/sm2gh-secrets"
+    "aws-secrets-github-sync": "bin/aws-secrets-github-sync"
   },
   "scripts": {
     "build": "npx projen build",
