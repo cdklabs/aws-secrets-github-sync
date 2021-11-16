@@ -1,5 +1,5 @@
 {
-  "name": "@cdklabs/sm2gh-secrets",
+  "name": "sm2gh-secrets",
   "description": "Update GitHub repository secrets from an AWS SecretsManager secret",
   "bin": {
     "sm2gh-secrets": "bin/sm2gh-secrets"
@@ -55,9 +55,6 @@
   },
   "main": "lib/index.js",
   "license": "Apache-2.0",
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com/"
-  },
   "version": "0.0.0",
   "jest": {
     "testMatch": [

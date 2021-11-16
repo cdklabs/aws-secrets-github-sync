@@ -2,6 +2,11 @@
 
 > Updates GitHub secrets from AWS Secrets Manager.
 
+---
+
+> **Beta**: This project is under active development and is not recommended to
+> use in production environments.
+
 This utility reads a secret from AWS Secrets Manager and stores the keys from
 this secret to GitHub repository secrets.
 
