@@ -37,7 +37,7 @@
     "organization": true
   },
   "devDependencies": {
-    "@types/jest": "^27.0.2",
+    "@types/jest": "^27.0.3",
     "@types/node": "^12.13.0",
     "@typescript-eslint/eslint-plugin": "^4.33.0",
     "@typescript-eslint/parser": "^4.33.0",
@@ -49,13 +49,13 @@
     "jest-junit": "^12",
     "json-schema": "^0.4.0",
     "npm-check-updates": "^11",
-    "projen": "^0.34.1",
+    "projen": "^0.34.24",
     "standard-version": "^9",
     "ts-jest": "^27.0.7",
-    "typescript": "^4.4.4"
+    "typescript": "^4.5.2"
   },
   "dependencies": {
-    "aws-sdk": "^2.1029.0",
+    "aws-sdk": "^2.1037.0",
     "yargs": "17.1.1"
   },
   "bundledDependencies": [],
