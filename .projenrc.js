@@ -1,8 +1,8 @@
-const { TypeScriptProject, JsonFile } = require('projen');
+const { typescript, JsonFile } = require('projen');
 
 const PROJEN_UPGRADE_SECRET = 'PROJEN_GITHUB_TOKEN';
 
-const project = new TypeScriptProject({
+const project = new typescript.TypeScriptProject({
   defaultReleaseBranch: 'main',
   name: 'aws-secrets-github-sync',
   repository: 'https://github.com/cdklabs/aws-secrets-github-sync.git',
@@ -12,6 +12,7 @@ const project = new TypeScriptProject({
   description: 'Update GitHub repository secrets from an AWS SecretsManager secret',
   deps: ['aws-sdk', 'yargs@17.1.1'],
   minNodeVersion: '12.13.0',
+  workflowNodeVersion: '12.22.0',
   projenUpgradeSecret: PROJEN_UPGRADE_SECRET,
   releaseToNpm: true,
   workflowBootstrapSteps: [
