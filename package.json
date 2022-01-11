@@ -18,8 +18,6 @@
     "package": "npx projen package",
     "post-compile": "npx projen post-compile",
     "pre-compile": "npx projen pre-compile",
-    "publish:github": "npx projen publish:github",
-    "publish:npm": "npx projen publish:npm",
     "release": "npx projen release",
     "secrets:update": "npx projen secrets:update",
     "semgrep": "npx projen semgrep",
@@ -37,28 +35,27 @@
     "organization": true
   },
   "devDependencies": {
-    "@types/jest": "^27.0.3",
-    "@types/node": "^12.13.0",
+    "@types/jest": "^27.4.0",
+    "@types/node": "^12",
     "@typescript-eslint/eslint-plugin": "^5",
     "@typescript-eslint/parser": "^5",
     "eslint": "^8",
     "eslint-import-resolver-node": "^0.3.6",
     "eslint-import-resolver-typescript": "^2.5.0",
-    "eslint-plugin-import": "^2.25.3",
-    "jest": "^27.4.3",
+    "eslint-plugin-import": "^2.25.4",
+    "jest": "^27.4.7",
     "jest-junit": "^13",
     "json-schema": "^0.4.0",
-    "npm-check-updates": "^11",
-    "projen": "^0.37.0",
+    "npm-check-updates": "^12",
+    "projen": "^0.50.18",
     "standard-version": "^9",
-    "ts-jest": "^27.1.0",
-    "typescript": "^4.5.2"
+    "ts-jest": "^27.1.2",
+    "typescript": "^4.5.4"
   },
   "dependencies": {
-    "aws-sdk": "^2.1043.0",
+    "aws-sdk": "^2.1054.0",
     "yargs": "17.1.1"
   },
-  "bundledDependencies": [],
   "engines": {
     "node": ">= 12.13.0"
   },
@@ -67,8 +64,8 @@
   "version": "0.0.0",
   "jest": {
     "testMatch": [
-      "**/__tests__/**/*.ts?(x)",
-      "**/?(*.)+(spec|test).ts?(x)"
+      "<rootDir>/src/**/__tests__/**/*.ts?(x)",
+      "<rootDir>/(test|src)/**/?(*.)+(spec|test).ts?(x)"
     ],
     "clearMocks": true,
     "collectCoverage": true,
