@@ -42,7 +42,7 @@ jobs:
         if: ${{ steps.git_remote.outputs.latest_commit == github.sha }}
         uses: actions/upload-artifact@v2.1.1
         with:
-          name: dist
+          name: build-artifact
           path: dist
   release_github:
     name: Publish to GitHub Releases
@@ -52,10 +52,13 @@ jobs:
       contents: write
     if: needs.release.outputs.latest_commit == github.sha
     steps:
+      - uses: actions/setup-node@v2
+        with:
+          node-version: 14.x
       - name: Download build artifacts
         uses: actions/download-artifact@v2
         with:
-          name: dist
+          name: build-artifact
           path: dist
       - name: Release
         run: errout=$(mktemp); gh release create $(cat dist/releasetag.txt) -R
@@ -75,10 +78,13 @@ jobs:
       contents: read
     if: needs.release.outputs.latest_commit == github.sha
     steps:
+      - uses: actions/setup-node@v2
+        with:
+          node-version: 14.x
       - name: Download build artifacts
         uses: actions/download-artifact@v2
         with:
-          name: dist
+          name: build-artifact
           path: dist
       - name: Release
         run: npx -p jsii-release@latest jsii-release-npm
@@ -86,5 +92,3 @@ jobs:
           NPM_DIST_TAG: latest
           NPM_REGISTRY: registry.npmjs.org
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-    container:
-      image: jsii/superchain:1-buster-slim-node14
