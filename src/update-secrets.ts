@@ -124,7 +124,7 @@ export async function updateSecrets(options: UpdateSecretsOptions) {
 
   c.log(`FROM  : ${secret.arn}`);
   c.log(`REPO  : ${repository}`);
-  c.log(`UDPATE: ${keys.join(',')}`);
+  c.log(`UPDATE: ${keys.join(',')}`);
 
   if (pruneCandidates.length > 0) {
     if (prune) {

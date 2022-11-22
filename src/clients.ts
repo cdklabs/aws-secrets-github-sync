@@ -44,8 +44,11 @@ function log(text: string = '') {
 }
 
 function getRepositoryName(): string {
-  const output = spawnSync('gh', ['repo', 'view', '--json', 'nameWithOwner'], { stdio: ['ignore', 'pipe', 'inherit'] }).stdout.toString('utf-8');
-
+  const spawn = spawnSync('gh', ['repo', 'view', '--json', 'nameWithOwner'], { stdio: ['ignore', 'pipe', 'inherit'] });
+  if (spawn.stderr) {
+    throw new Error(`Failed to get repository name: ${spawn.stderr}`);
+  }
+  const output = spawn.stdout.toString('utf-8');
   try {
     const repo = JSON.parse(output);
     return repo.nameWithOwner;
@@ -56,18 +59,27 @@ function getRepositoryName(): string {
 
 function storeSecret(repository: string, name: string, value: string): void {
   const args = ['secret', 'set', '--repo', repository, name];
-  spawnSync('gh', args, { input: value, stdio: ['pipe', 'inherit', 'inherit'] });
+  const spawn = spawnSync('gh', args, { input: value, stdio: ['pipe', 'inherit', 'pipe'] });
+  if (spawn.stderr) {
+    throw new Error(`Failed to store secret '${name}' in repository '${repository}': ${spawn.stderr}`);
+  }
 }
 
 function listSecrets(repository: string): string[] {
   const args = ['secret', 'list', '--repo', repository];
-  const stdout = spawnSync('gh', args, { stdio: ['ignore', 'pipe', 'inherit'] }).stdout.toString('utf-8').trim();
-  return stdout.split('\n').map(line => line.split('\t')[0]);
+  const spawn = spawnSync('gh', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+  if (spawn.stderr) {
+    throw new Error(`Failed to list secrets in repository '${repository}': ${spawn.stderr}`);
+  }
+  return spawn.stdout.toString('utf-8').trim().split('\n').map(line => line.split('\t')[0]);
 }
 
 function removeSecret(repository: string, key: string): void {
   const args = ['secret', 'remove', '--repo', repository, key];
-  spawnSync('gh', args, { stdio: ['ignore', 'inherit', 'inherit'] });
+  const spawn = spawnSync('gh', args, { stdio: ['ignore', 'inherit', 'pipe'] });
+  if (spawn.stderr) {
+    throw new Error(`Failed to remove secret '${key}' from repository '${repository}': ${spawn.stderr}`);
+  }
 }
 
 function confirmPrompt(): Promise<boolean> {
@@ -96,7 +108,14 @@ async function getSecret(secretId: string, options: SecretOptions = {}): Promise
     customUserAgent: `${PKG.name}/${PKG.version}`,
   });
 
-  const result = await client.getSecretValue({ SecretId: secretId }).promise();
+  let result;
+  try {
+    result = await client.getSecretValue({ SecretId: secretId }).promise();
+  } catch (error) {
+    throw new Error(`Failed to retrieve secret '${secretId}' from SecretsManager: ${error}`);
+  }
+
+
   let json;
   try {
     json = JSON.parse(result.SecretString!);
