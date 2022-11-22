@@ -44,7 +44,7 @@ function log(text: string = '') {
 }
 
 function getRepositoryName(): string {
-  const spawn = spawnSync('gh', ['repo', 'view', '--json', 'nameWithOwner'], { stdio: ['ignore', 'pipe', 'inherit'] });
+  const spawn = spawnSync('gh', ['repo', 'view', '--json', 'nameWithOwner'], { stdio: ['ignore', 'pipe', 'pipe'] });
   if (spawn.stderr) {
     throw new Error(`Failed to get repository name: ${spawn.stderr}`);
   }
