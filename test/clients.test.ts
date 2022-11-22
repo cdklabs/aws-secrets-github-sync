@@ -58,7 +58,7 @@ describe('Error handling', () => {
     ).toThrowError("Failed to remove secret 'key' from repository 'repo'");
   });
 
-  test('throws error, when SecretsManager.removeSecret() throws an error', async () => {
+  test('throws error, when SecretsManager.getSecretValue() throws an error', async () => {
     return expect(async () => {
       return clients.getSecret('secretId');
     }).rejects.toThrow("Failed to retrieve secret 'secretId' from SecretsManager: Error: Nope");
