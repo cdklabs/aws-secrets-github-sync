@@ -45,9 +45,8 @@ function log(text: string = '') {
 
 function getRepositoryName(): string {
   const spawn = spawnSync('gh', ['repo', 'view', '--json', 'nameWithOwner'], { stdio: ['ignore', 'pipe', 'pipe'] });
-  const stderr = spawn.stderr?.toString();
-  if (stderr) {
-    throw new Error(`Failed to get repository name: ${stderr}`);
+  if (spawn.status !== 0) {
+    throw new Error(`Failed to get repository name: ${spawn.stderr?.toString()}`);
   }
   const output = spawn.stdout.toString('utf-8');
   try {
@@ -61,18 +60,16 @@ function getRepositoryName(): string {
 function storeSecret(repository: string, name: string, value: string): void {
   const args = ['secret', 'set', '--repo', repository, name];
   const spawn = spawnSync('gh', args, { input: value, stdio: ['pipe', 'inherit', 'pipe'] });
-  const stderr = spawn.stderr?.toString();
-  if (stderr) {
-    throw new Error(`Failed to store secret '${name}' in repository '${repository}': ${stderr}`);
+  if (spawn.status !== 0) {
+    throw new Error(`Failed to store secret '${name}' in repository '${repository}': ${spawn.stderr?.toString()}`);
   }
 }
 
 function listSecrets(repository: string): string[] {
   const args = ['secret', 'list', '--repo', repository];
   const spawn = spawnSync('gh', args, { stdio: ['ignore', 'pipe', 'pipe'] });
-  const stderr = spawn.stderr?.toString();
-  if (stderr) {
-    throw new Error(`Failed to list secrets in repository '${repository}': ${stderr}`);
+  if (spawn.status !== 0) {
+    throw new Error(`Failed to list secrets in repository '${repository}': ${spawn.stderr?.toString()}`);
   }
   return spawn.stdout.toString('utf-8').trim().split('\n').map(line => line.split('\t')[0]);
 }
@@ -80,9 +77,8 @@ function listSecrets(repository: string): string[] {
 function removeSecret(repository: string, key: string): void {
   const args = ['secret', 'remove', '--repo', repository, key];
   const spawn = spawnSync('gh', args, { stdio: ['ignore', 'inherit', 'pipe'] });
-  const stderr = spawn.stderr?.toString();
-  if (stderr) {
-    throw new Error(`Failed to remove secret '${key}' from repository '${repository}': ${stderr}`);
+  if (spawn.status !== 0) {
+    throw new Error(`Failed to remove secret '${key}' from repository '${repository}': ${spawn.stderr?.toString()}`);
   }
 }
 
