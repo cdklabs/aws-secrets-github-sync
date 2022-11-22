@@ -115,7 +115,6 @@ async function getSecret(secretId: string, options: SecretOptions = {}): Promise
     throw new Error(`Failed to retrieve secret '${secretId}' from SecretsManager: ${error}`);
   }
 
-
   let json;
   try {
     json = JSON.parse(result.SecretString!);
