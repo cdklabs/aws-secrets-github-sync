@@ -20,6 +20,8 @@ const project = new typescript.TypeScriptProject({
       run: 'python3 -m pip install semgrep',
     },
   ],
+  autoApproveUpgrades: true,
+  autoApproveOptions: { allowedUsernames: ['cdklabs-automation'] },
 });
 
 //----------------------------------------------------
