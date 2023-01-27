@@ -21,7 +21,7 @@ const project = new typescript.TypeScriptProject({
     },
   ],
   autoApproveUpgrades: true,
-  autoApproveOptions: { allowedUsernames: ["cdklabs-automation"] },
+  autoApproveOptions: { allowedUsernames: ['cdklabs-automation'] },
 });
 
 //----------------------------------------------------
