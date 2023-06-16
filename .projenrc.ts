@@ -1,8 +1,11 @@
-import { typescript, JsonFile } from 'projen';
+import { CdklabsTypeScriptProject } from 'cdklabs-projen-project-types';
+import { JsonFile } from 'projen';
 
 const PROJEN_UPGRADE_SECRET = 'PROJEN_GITHUB_TOKEN';
 
-const project = new typescript.TypeScriptProject({
+const project = new CdklabsTypeScriptProject({
+  stability: 'stable',
+  private: false,
   defaultReleaseBranch: 'main',
   name: 'aws-secrets-github-sync',
   projenrcTs: true,
@@ -12,7 +15,6 @@ const project = new typescript.TypeScriptProject({
   authorOrganization: true,
   description: 'Update GitHub repository secrets from an AWS SecretsManager secret',
   deps: ['aws-sdk', 'yargs@17.1.1'],
-  minNodeVersion: '14.17.0',
   releaseToNpm: true,
   workflowBootstrapSteps: [
     {
