@@ -50,4 +50,5 @@ junit.xml
 /lib
 /dist/
 !/.eslintrc.json
+!/.github/workflows/upgrade-cdklabs-projen-project-types-main.yml
 !/sm2gh.json
