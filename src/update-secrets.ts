@@ -33,6 +33,12 @@ export interface UpdateSecretsOptions {
   readonly repository?: string;
 
   /**
+   * The environment to use.
+   * @default - no environment
+   */
+  readonly environment?: string;
+
+  /**
    * The secret keys to update. To update all keys, set `all` to `true` and leave `keys` empty.
    *
    * @example `['GITHUB_TOKEN', 'GITHUB_TOKEN_SECRET']`
@@ -83,6 +89,7 @@ export async function updateSecrets(options: UpdateSecretsOptions) {
   }
 
   const repository: string = options.repository ?? c.getRepositoryName();
+  const environment = options.environment;
   const secret = await c.getSecret(options.secret, { region, profile: options.profile });
   const keys = options.keys ?? [];
   const prune = options.prune ?? false;
@@ -117,7 +124,7 @@ export async function updateSecrets(options: UpdateSecretsOptions) {
   }
 
   // find all the secrets in the repo that don't correspond to keys in the secret
-  const existingKeys = c.listSecrets(repository);
+  const existingKeys = c.listSecrets(repository, environment);
   const pruneCandidates = existingKeys.filter(key => !keys.includes(key));
   const keysToPrune = pruneCandidates.filter(key => !keep.includes(key));
   const keysToKeep = pruneCandidates.filter(key => keep.includes(key));
@@ -153,13 +160,13 @@ export async function updateSecrets(options: UpdateSecretsOptions) {
       continue; // skip if key is not in "keys"
     }
 
-    c.storeSecret(repository, key, value);
+    c.storeSecret(repository, key, value, environment);
   }
 
   // prune keys that are not in the secret
   if (prune) {
     for (const key of keysToPrune) {
-      c.removeSecret(repository, key);
+      c.removeSecret(repository, key, environment);
     }
   }
 }
