@@ -56,7 +56,7 @@
     "typescript": "^4.9.5"
   },
   "dependencies": {
-    "aws-sdk": "^2.1569.0",
+    "aws-sdk": "^2.1570.0",
     "yargs": "17.1.1"
   },
   "engines": {
