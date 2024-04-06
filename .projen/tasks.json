@@ -251,7 +251,7 @@
       },
       "steps": [
         {
-          "exec": "npx npm-check-updates@16 --upgrade --target=minor --peer --dep=prod --filter=aws-sdk,yargs"
+          "exec": "npx npm-check-updates@16 --upgrade --target=minor --peer --dep=prod --filter=aws-sdk"
         },
         {
           "exec": "yarn install --check-files"
