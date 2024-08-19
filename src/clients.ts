@@ -17,15 +17,19 @@ export interface SecretOptions {
    * Credential profile to use.
    */
   readonly profile?: string;
+  /**
+   * Environment to use.
+   */
+  readonly env?: string;
 }
 
 export interface Clients {
   getSecret(secretId: string, options?: SecretOptions): Promise<Secret>;
   confirmPrompt(): Promise<boolean>;
   getRepositoryName(): string;
-  storeSecret(repository: string, key: string, value: string): void;
-  listSecrets(repository: string): string[];
-  removeSecret(repository: string, key: string): void;
+  storeSecret(repository: string, key: string, value: string, environment?: string): void;
+  listSecrets(repository: string, environment?: string): string[];
+  removeSecret(repository: string, key: string, environment?: string): void;
   log(text?: string): void;
 }
 
@@ -54,19 +58,28 @@ function getRepositoryName(): string {
   }
 }
 
-function storeSecret(repository: string, name: string, value: string): void {
+function storeSecret(repository: string, name: string, value: string, environment?: string): void {
   const args = ['secret', 'set', '--repo', repository, name];
+  if (environment) {
+    args.push('-e', environment);
+  }
   spawnSync('gh', args, { input: value, stdio: ['pipe', 'inherit', 'inherit'] });
 }
 
-function listSecrets(repository: string): string[] {
+function listSecrets(repository: string, environment?: string): string[] {
   const args = ['secret', 'list', '--repo', repository];
+  if (environment) {
+    args.push('-e', environment);
+  }
   const stdout = spawnSync('gh', args, { stdio: ['ignore', 'pipe', 'inherit'] }).stdout.toString('utf-8').trim();
   return stdout.split('\n').map(line => line.split('\t')[0]);
 }
 
-function removeSecret(repository: string, key: string): void {
+function removeSecret(repository: string, key: string, environment?: string): void {
   const args = ['secret', 'remove', '--repo', repository, key];
+  if (environment) {
+    args.push('-e', environment);
+  }
   spawnSync('gh', args, { stdio: ['ignore', 'inherit', 'inherit'] });
 }
 
