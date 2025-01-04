@@ -71,6 +71,7 @@ Options:
 * `-r`, `--repo` - The GitHub full repository name (e.g.
   `cdklabs/aws-secrets-github-sync`). If this is not specified, we will try to resolve the
   repo from the current git settings.
+* `-e`, `--environment` - The GitHub environment to store the secret in (Optional).
 * `-R`, `--region` - The AWS region to read the secret from. If this is not
   specified, `AWS_REGION` will be used. If the secret is an ARN, we will resolve
   the region from the ARN.
