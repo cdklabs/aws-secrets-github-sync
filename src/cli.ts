@@ -7,6 +7,7 @@ async function main() {
     .usage('$0 -C secrets.json')
     .option('secret', { alias: 's', describe: 'Secrets Manager secret ID or ARN', type: 'string', required: true })
     .option('repo', { alias: 'r', describe: 'GitHub repository owner/name (default is derived from current git repository)', type: 'string' })
+    .option('environment', { alias: 'e', describe: 'GitHub environment', type: 'string' })
     .option('region', { alias: 'R', describe: 'AWS region (if --secret is an ARN, region is not required)', type: 'string' })
     .option('keys', { alias: 'k', describe: 'Which keys to update (to update all keys use --all)', type: 'array' })
     .option('all', { alias: 'A', describe: 'Update all keys', type: 'boolean' })
@@ -32,6 +33,7 @@ async function main() {
     secret: argv.secret,
     region: argv.region,
     repository: argv.repo,
+    environment: argv.environment,
     allKeys: argv.all,
     keys: argv.keys,
     confirm: !argv.yes,
