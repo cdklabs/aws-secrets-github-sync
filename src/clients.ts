@@ -44,7 +44,8 @@ function log(text: string = '') {
 }
 
 function getRepositoryName(): string {
-  const output = spawnSync('gh', ['repo', 'view', '--json', 'nameWithOwner'], { stdio: ['ignore', 'pipe', 'inherit'] }).stdout.toString('utf-8');
+  const result = assertSuccess(spawnSync('gh', ['repo', 'view', '--json', 'nameWithOwner'], { stdio: ['ignore', 'pipe', 'inherit'] }));
+  const output = result.stdout.toString('utf-8');
 
   try {
     const repo = JSON.parse(output);
@@ -56,18 +57,19 @@ function getRepositoryName(): string {
 
 function storeSecret(repository: string, name: string, value: string): void {
   const args = ['secret', 'set', '--repo', repository, name];
-  spawnSync('gh', args, { input: value, stdio: ['pipe', 'inherit', 'inherit'] });
+  assertSuccess(spawnSync('gh', args, { input: value, stdio: ['pipe', 'inherit', 'inherit'] }));
 }
 
 function listSecrets(repository: string): string[] {
   const args = ['secret', 'list', '--repo', repository];
-  const stdout = spawnSync('gh', args, { stdio: ['ignore', 'pipe', 'inherit'] }).stdout.toString('utf-8').trim();
+  const result = assertSuccess(spawnSync('gh', args, { stdio: ['ignore', 'pipe', 'inherit'] }));
+  const stdout = result.stdout.toString('utf-8').trim();
   return stdout.split('\n').map(line => line.split('\t')[0]);
 }
 
 function removeSecret(repository: string, key: string): void {
   const args = ['secret', 'remove', '--repo', repository, key];
-  spawnSync('gh', args, { stdio: ['ignore', 'inherit', 'inherit'] });
+  assertSuccess(spawnSync('gh', args, { stdio: ['ignore', 'inherit', 'inherit'] }));
 }
 
 function confirmPrompt(): Promise<boolean> {
@@ -113,4 +115,20 @@ async function getSecret(secretId: string, options: SecretOptions = {}): Promise
 export interface Secret {
   readonly json: Record<string, string>;
   readonly arn: string;
+}
+
+/**
+ * Throw an exception if a subprocess exited with an unsuccessful exit code
+ */
+function assertSuccess<A extends ReturnType<typeof spawnSync>>(x: A): A {
+  if (x.error) {
+    throw x.error;
+  }
+  if (x.signal) {
+    throw new Error(`Process exited with signal ${x.signal}`);
+  }
+  if (x.status != null && x.status > 0) {
+    throw new Error(`Process exited with code ${x.status}`);
+  }
+  return x;
 }
