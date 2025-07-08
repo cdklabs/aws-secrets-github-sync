@@ -3,7 +3,7 @@ import * as readline from 'readline';
 import * as aws from 'aws-sdk';
 // reduce log pollution from SDK v3 upgrade messages
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-require('aws-sdk/lib/maintenance_mode_message').suppress = true
+require('aws-sdk/lib/maintenance_mode_message').suppress = true;
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const PKG = require('../package.json');
@@ -16,17 +16,17 @@ export interface RetryOptions {
    * Maximum number of retry attempts.
    */
   readonly maxRetries: number;
-  
+
   /**
    * Initial backoff time in milliseconds.
    */
   readonly initialBackoff: number;
-  
+
   /**
    * Maximum backoff time in milliseconds.
    */
   readonly maxBackoff: number;
-  
+
   /**
    * Backoff factor for exponential backoff.
    */
@@ -35,7 +35,7 @@ export interface RetryOptions {
 
 /**
  * Default retry options.
- * 
+ *
  * Based on GitHub API rate limit documentation:
  * - For secondary rate limits, wait at least 60 seconds (1 minute) before retrying
  * - Use exponential backoff for persistent rate limit issues
@@ -43,8 +43,8 @@ export interface RetryOptions {
 const DEFAULT_RETRY_OPTIONS: Required<RetryOptions> = {
   maxRetries: 5,
   initialBackoff: 60_000, // 60 seconds (1 minute) as recommended by GitHub for secondary rate limits
-  maxBackoff: 6_000_000,    // 100 minutes maximum backoff
-  backoffFactor: 3,      // Exponential backoff factor
+  maxBackoff: 6_000_000, // 100 minutes maximum backoff
+  backoffFactor: 3, // Exponential backoff factor
 };
 
 /**
@@ -119,7 +119,7 @@ function removeSecret(repository: string, key: string): void {
 
 /**
  * Execute a command with exponential backoff and retries.
- * 
+ *
  * @param command Function that executes a command and returns the result
  * @param options Retry options
  * @returns The result of the command
@@ -149,7 +149,7 @@ function executeWithRetry<T extends SpawnSyncReturns<Buffer>>(
       // Calculate backoff time with exponential increase
       const backoffTime = Math.min(
         retryOpts.initialBackoff * Math.pow(retryOpts.backoffFactor, attempt - 1),
-        retryOpts.maxBackoff
+        retryOpts.maxBackoff,
       );
 
       // Log retry attempt
