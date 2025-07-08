@@ -13,12 +13,12 @@ let mocks: Clients;
 
 beforeEach(() => {
   mocks = {
-    getRepositoryName: jest.fn().mockReturnValue('my-owner/my-repo'),
-    getSecret: jest.fn().mockReturnValue({ arn: 'secret-arn', json: secretJson, region: 'us-east-1' }),
-    confirmPrompt: jest.fn().mockReturnValue(true),
-    storeSecret: jest.fn(),
-    listSecrets: jest.fn().mockReturnValue(['PROJEN_GITHUB_TOKEN', 'TWINE_USERNAME', 'ANOTHER_SECRET', 'BOOM_BAM']),
-    removeSecret: jest.fn(),
+    getRepositoryName: jest.fn().mockResolvedValue('my-owner/my-repo'),
+    getSecret: jest.fn().mockResolvedValue({ arn: 'secret-arn', json: secretJson, region: 'us-east-1' }),
+    confirmPrompt: jest.fn().mockResolvedValue(true),
+    storeSecret: jest.fn().mockResolvedValue(undefined),
+    listSecrets: jest.fn().mockResolvedValue(['PROJEN_GITHUB_TOKEN', 'TWINE_USERNAME', 'ANOTHER_SECRET', 'BOOM_BAM']),
+    removeSecret: jest.fn().mockResolvedValue(undefined),
     log: jest.fn(),
   };
 });
@@ -46,7 +46,7 @@ test('fails if there are no keys in the secret', async () => {
   await expect(updateSecrets({
     clients: {
       ...mocks,
-      getSecret: jest.fn().mockReturnValue({ arn: 'secret-arn', json: {}, region: 'us-east-1' }),
+      getSecret: jest.fn().mockResolvedValue({ arn: 'secret-arn', json: {}, region: 'us-east-1' }),
     },
     secret: 'my-secret-name',
     allKeys: true,
@@ -129,7 +129,7 @@ test('fails if one of the keys does not exist in the secret', async () => {
 });
 
 test('stops if user did not confirm', async () => {
-  mocks.confirmPrompt = jest.fn().mockReturnValue(false);
+  mocks.confirmPrompt = jest.fn().mockResolvedValue(false);
 
   await updateSecrets({
     clients: mocks,
@@ -160,7 +160,7 @@ test('useful error if secret is not an object', async () => {
   await expect(updateSecrets({
     clients: {
       ...mocks,
-      getSecret: jest.fn().mockReturnValue({ arn: 'secret-arn', json: 'not-json', region: 'us-east-1' }),
+      getSecret: jest.fn().mockResolvedValue({ arn: 'secret-arn', json: 'not-json', region: 'us-east-1' }),
     },
     secret: 'my-secret-name',
     allKeys: true,
@@ -228,6 +228,7 @@ jest.mock('child_process', () => {
   return {
     ...originalModule,
     spawnSync: jest.fn(),
+    execSync: jest.fn(),
   };
 });
 
@@ -241,7 +242,7 @@ describe('GitHub API retry functionality', () => {
     jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
-  test('executeWithRetry should retry on failure', () => {
+  test('executeWithRetry should retry on failure', async () => {
     // Mock spawnSync to fail twice and then succeed
     mockSpawnSync
       .mockReturnValueOnce({
@@ -278,14 +279,14 @@ describe('GitHub API retry functionality', () => {
     };
 
     // Execute a command with retry
-    const result = executeWithRetry(() => mockSpawnSync('gh', ['api', 'test']), retryOptions);
+    const result = await executeWithRetry(() => mockSpawnSync('gh', ['api', 'test']), retryOptions);
 
     // Verify the command was called 3 times (2 failures + 1 success)
     expect(mockSpawnSync).toHaveBeenCalledTimes(3);
     expect(result.stdout.toString()).toBe('Success');
   });
 
-  test('executeWithRetry should throw after exhausting retries', () => {
+  test('executeWithRetry should throw after exhausting retries', async () => {
     // Mock spawnSync to always fail
     mockSpawnSync.mockReturnValue({
       status: 1,
@@ -305,19 +306,22 @@ describe('GitHub API retry functionality', () => {
     };
 
     // Execute a command with retry and expect it to throw
-    expect(() => {
-      executeWithRetry(() => mockSpawnSync('gh', ['api', 'test']), retryOptions);
-    }).toThrow('API rate limit exceeded');
+    await expect(
+      executeWithRetry(() => mockSpawnSync('gh', ['api', 'test']), retryOptions),
+    ).rejects.toThrow('Process exited with code 1');
 
     // Verify the command was called maxRetries + 1 times
     expect(mockSpawnSync).toHaveBeenCalledTimes(3); // Initial attempt + 2 retries
   });
 
-  test('executeWithRetry should use exponential backoff', () => {
-    // Mock Date.now to control time
-    const originalDateNow = Date.now;
-    const mockDateNow = jest.fn();
-    Date.now = mockDateNow;
+  test('executeWithRetry should use exponential backoff', async () => {
+    // Mock setTimeout to track sleep calls
+    const originalSetTimeout = setTimeout;
+    const mockSetTimeout = jest.fn().mockImplementation((callback) => {
+      callback(); // Execute callback immediately for testing
+      return 123; // Return a timeout ID
+    });
+    global.setTimeout = mockSetTimeout as any;
 
     // Mock spawnSync to fail twice and then succeed
     mockSpawnSync
@@ -346,15 +350,6 @@ describe('GitHub API retry functionality', () => {
         signal: null,
       });
 
-    // Set up Date.now to advance time on each call
-    mockDateNow
-      .mockReturnValueOnce(1000) // Initial call
-      .mockReturnValueOnce(1000) // First failure
-      .mockReturnValueOnce(1100) // After first backoff (100ms)
-      .mockReturnValueOnce(1100) // Second failure
-      .mockReturnValueOnce(1300) // After second backoff (200ms)
-      .mockReturnValueOnce(1300); // Success
-
     // Define retry options with specific backoff times for testing
     const retryOptions: RetryOptions = {
       maxRetries: 3,
@@ -364,12 +359,107 @@ describe('GitHub API retry functionality', () => {
     };
 
     // Execute a command with retry
-    executeWithRetry(() => mockSpawnSync('gh', ['api', 'test']), retryOptions);
+    await executeWithRetry(() => mockSpawnSync('gh', ['api', 'test']), retryOptions);
 
     // Verify the command was called 3 times
     expect(mockSpawnSync).toHaveBeenCalledTimes(3);
 
-    // Restore original Date.now
+    // Verify setTimeout was called with the correct backoff times
+    expect(mockSetTimeout).toHaveBeenCalledTimes(2); // Called twice for the two failures
+    expect(mockSetTimeout.mock.calls[0][1]).toBe(100); // First backoff: 100ms
+    expect(mockSetTimeout.mock.calls[1][1]).toBe(200); // Second backoff: 200ms (100ms * 2)
+
+    // Restore original setTimeout
+    global.setTimeout = originalSetTimeout;
+  });
+
+  test('executeWithRetry should retry on any error', async () => {
+    // Mock spawnSync to fail with a non-rate-limit error and then succeed
+    mockSpawnSync
+      .mockReturnValueOnce({
+        status: 1,
+        stdout: Buffer.from('Some other error'),
+        stderr: Buffer.from(''),
+        pid: 123,
+        output: [],
+        signal: null,
+      })
+      .mockReturnValueOnce({
+        status: 0,
+        stdout: Buffer.from('Success'),
+        stderr: Buffer.from(''),
+        pid: 123,
+        output: [],
+        signal: null,
+      });
+
+    // Define retry options with very short backoff times for testing
+    const retryOptions: RetryOptions = {
+      maxRetries: 3,
+      initialBackoff: 10, // 10ms
+      maxBackoff: 100, // 100ms
+      backoffFactor: 2,
+    };
+
+    // Execute a command with retry
+    const result = await executeWithRetry(() => mockSpawnSync('gh', ['api', 'test']), retryOptions);
+
+    // Verify the command was called twice (1 failure + 1 success)
+    expect(mockSpawnSync).toHaveBeenCalledTimes(2);
+    expect(result.stdout.toString()).toBe('Success');
+  });
+
+  test('executeWithRetry should respect deadline', async () => {
+    // Mock setTimeout to execute callbacks immediately
+    const originalSetTimeout = setTimeout;
+    const mockSetTimeout = jest.fn().mockImplementation((callback) => {
+      callback(); // Execute callback immediately for testing
+      return 123; // Return a timeout ID
+    });
+    global.setTimeout = mockSetTimeout as any;
+
+    // Mock Date.now to control time
+    const originalDateNow = Date.now;
+    const mockDateNow = jest.fn();
+    Date.now = mockDateNow;
+
+    // Mock spawnSync to always fail with rate limit error
+    mockSpawnSync.mockReturnValue({
+      status: 1,
+      stdout: Buffer.from('API rate limit exceeded'),
+      stderr: Buffer.from(''),
+      pid: 123,
+      output: [],
+      signal: null,
+    });
+
+    // Set up Date.now to advance time on each call
+    mockDateNow
+      .mockReturnValueOnce(1000) // Initial call
+      .mockReturnValueOnce(1000) // First failure
+      .mockReturnValueOnce(1100) // After first backoff
+      .mockReturnValueOnce(1100) // Second failure
+      .mockReturnValueOnce(1300) // After second backoff - exceeds deadline
+      .mockReturnValueOnce(1300); // Check deadline
+
+    // Define retry options with deadline
+    const retryOptions: RetryOptions = {
+      initialBackoff: 10,
+      maxBackoff: 100,
+      backoffFactor: 2,
+      deadline: 250, // 250ms deadline (will be exceeded after second retry)
+    };
+
+    // Execute a command with retry and expect it to throw after deadline
+    await expect(
+      executeWithRetry(() => mockSpawnSync('gh', ['api', 'test']), retryOptions),
+    ).rejects.toThrow('Process exited with code 1');
+
+    // Verify the command was called thrice before deadline was reached
+    expect(mockSpawnSync).toHaveBeenCalledTimes(3);
+
+    // Restore original functions
     Date.now = originalDateNow;
+    global.setTimeout = originalSetTimeout;
   });
 });
