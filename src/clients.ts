@@ -2,6 +2,7 @@ import { spawnSync, SpawnSyncReturns } from 'child_process';
 import * as readline from 'readline';
 import * as aws from 'aws-sdk';
 // reduce log pollution from SDK v3 upgrade messages
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 require('aws-sdk/lib/maintenance_mode_message').suppress = true
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
