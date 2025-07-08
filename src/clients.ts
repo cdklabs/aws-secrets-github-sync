@@ -13,35 +13,24 @@ const PKG = require('../package.json');
  */
 export interface RetryOptions {
   /**
-   * Maximum number of retry attempts.
-   * @default 5
-   */
-  readonly maxRetries?: number;
-
-  /**
    * Initial backoff time in milliseconds.
-   * @default 60000 (60 seconds)
    */
-  readonly initialBackoff?: number;
+  readonly initialBackoff: number;
 
   /**
    * Maximum backoff time in milliseconds.
-   * @default 600000 (10 minutes)
    */
-  readonly maxBackoff?: number;
+  readonly maxBackoff: number;
 
   /**
    * Backoff factor for exponential backoff.
-   * @default 2
    */
-  readonly backoffFactor?: number;
+  readonly backoffFactor: number;
 
   /**
    * Maximum time to keep retrying in milliseconds.
-   * If specified, this takes precedence over maxRetries.
-   * @default undefined (use maxRetries instead)
    */
-  readonly deadline?: number | undefined;
+  readonly deadline: number;
 }
 
 /**
@@ -51,11 +40,11 @@ export interface RetryOptions {
  * - For secondary rate limits, wait at least 60 seconds (1 minute) before retrying
  * - Use exponential backoff for persistent rate limit issues
  */
-const DEFAULT_RETRY_OPTIONS = {
-  maxRetries: 5,
+const DEFAULT_RETRY_OPTIONS: RetryOptions = {
   initialBackoff: 60_000, // 60 seconds (1 minute) as recommended by GitHub for secondary rate limits
-  maxBackoff: 6_000_000, // 100 minutes maximum backoff
+  maxBackoff: 3_000_000, // 50 minutes maximum backoff
   backoffFactor: 3, // Exponential backoff factor
+  deadline: 7_500_000, // 125 minutes default deadline
 };
 
 /**
@@ -137,21 +126,13 @@ async function removeSecret(repository: string, key: string): Promise<void> {
  */
 export async function executeWithRetry<T extends SpawnSyncReturns<Buffer>>(
   command: () => T,
-  options: RetryOptions = {},
+  options: RetryOptions = DEFAULT_RETRY_OPTIONS,
 ): Promise<T> {
-  const retryOpts = {
-    maxRetries: options.maxRetries ?? DEFAULT_RETRY_OPTIONS.maxRetries,
-    initialBackoff: options.initialBackoff ?? DEFAULT_RETRY_OPTIONS.initialBackoff,
-    maxBackoff: options.maxBackoff ?? DEFAULT_RETRY_OPTIONS.maxBackoff,
-    backoffFactor: options.backoffFactor ?? DEFAULT_RETRY_OPTIONS.backoffFactor,
-    deadline: options.deadline,
-  };
-
   let lastError: Error | undefined;
   let attempt = 0;
   const startTime = Date.now();
 
-  // Continue until we reach max retries or deadline
+  // Continue until we reach the deadline
   while (true) {
     try {
       const result = command();
@@ -161,33 +142,29 @@ export async function executeWithRetry<T extends SpawnSyncReturns<Buffer>>(
       attempt++;
 
       // Check if we've reached the deadline
-      if (retryOpts.deadline && Date.now() - startTime >= retryOpts.deadline) {
-        console.error(`GitHub API request failed: deadline of ${retryOpts.deadline}ms reached after ${attempt} attempts`);
-        throw lastError;
-      }
-
-      // Check if we've exhausted all retries
-      if (!retryOpts.deadline && attempt > retryOpts.maxRetries) {
+      if (Date.now() - startTime >= options.deadline) {
+        console.error(`GitHub API request failed: deadline of ${options.deadline}ms reached after ${attempt} attempts`);
         throw lastError;
       }
 
       // Calculate backoff time with exponential increase
       const backoffTime = Math.min(
-        retryOpts.initialBackoff * Math.pow(retryOpts.backoffFactor, attempt - 1),
-        retryOpts.maxBackoff,
+        options.initialBackoff * Math.pow(options.backoffFactor, attempt - 1),
+        options.maxBackoff,
       );
 
+      // Calculate time left before deadline
+      const timeLeft = options.deadline - (Date.now() - startTime);
+
+      // If the next backoff would exceed the deadline, don't wait the full time
+      const actualBackoff = Math.min(backoffTime, timeLeft);
+
       // Log retry attempt
-      if (retryOpts.deadline) {
-        const timeLeft = retryOpts.deadline - (Date.now() - startTime);
-        console.error(`Command failed (attempt ${attempt}, ${Math.round(timeLeft / 1000)}s left). Retrying in ${Math.round(backoffTime / 1000)}s...`);
-      } else {
-        console.error(`Command failed (attempt ${attempt}/${retryOpts.maxRetries}). Retrying in ${Math.round(backoffTime / 1000)}s...`);
-      }
+      console.error(`Command failed (attempt ${attempt}, ${Math.round(timeLeft / 1000)}s left). Retrying in ${Math.round(actualBackoff / 1000)}s...`);
       console.error(`Error: ${lastError.message}`);
 
       // Wait for backoff time before retrying
-      await new Promise(resolve => setTimeout(resolve, backoffTime));
+      await new Promise(resolve => setTimeout(resolve, actualBackoff));
     }
   }
 }

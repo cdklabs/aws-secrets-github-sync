@@ -272,10 +272,10 @@ describe('GitHub API retry functionality', () => {
 
     // Define retry options with very short backoff times for testing
     const retryOptions: RetryOptions = {
-      maxRetries: 3,
       initialBackoff: 10, // 10ms
       maxBackoff: 100, // 100ms
       backoffFactor: 2,
+      deadline: 1000, // 1 second deadline
     };
 
     // Execute a command with retry
@@ -299,10 +299,10 @@ describe('GitHub API retry functionality', () => {
 
     // Define retry options with very short backoff times for testing
     const retryOptions: RetryOptions = {
-      maxRetries: 2,
       initialBackoff: 10, // 10ms
       maxBackoff: 100, // 100ms
       backoffFactor: 2,
+      deadline: 500, // 500ms deadline
     };
 
     // Execute a command with retry and expect it to throw
@@ -310,8 +310,7 @@ describe('GitHub API retry functionality', () => {
       executeWithRetry(() => mockSpawnSync('gh', ['api', 'test']), retryOptions),
     ).rejects.toThrow('Process exited with code 1');
 
-    // Verify the command was called maxRetries + 1 times
-    expect(mockSpawnSync).toHaveBeenCalledTimes(3); // Initial attempt + 2 retries
+    expect(mockSpawnSync).toHaveBeenCalledTimes(9);
   });
 
   test('executeWithRetry should use exponential backoff', async () => {
@@ -352,10 +351,10 @@ describe('GitHub API retry functionality', () => {
 
     // Define retry options with specific backoff times for testing
     const retryOptions: RetryOptions = {
-      maxRetries: 3,
       initialBackoff: 100, // 100ms
       maxBackoff: 1000, // 1000ms
       backoffFactor: 2,
+      deadline: 1000, // 1 second deadline
     };
 
     // Execute a command with retry
@@ -395,10 +394,10 @@ describe('GitHub API retry functionality', () => {
 
     // Define retry options with very short backoff times for testing
     const retryOptions: RetryOptions = {
-      maxRetries: 3,
       initialBackoff: 10, // 10ms
       maxBackoff: 100, // 100ms
       backoffFactor: 2,
+      deadline: 1000, // 1 second deadline
     };
 
     // Execute a command with retry
