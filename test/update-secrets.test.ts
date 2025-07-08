@@ -1,5 +1,6 @@
+import { spawnSync } from 'child_process';
 import { updateSecrets } from '../src';
-import { Clients } from '../src/clients';
+import { Clients, RetryOptions, executeWithRetry } from '../src/clients';
 
 const secretJson = {
   NPM_TOKEN: 'my-npm-token',
@@ -218,4 +219,157 @@ test('"keep" can be used to retain keys depite prune', async () => {
   expect(mocks.listSecrets).toBeCalledWith('my-owner/my-repo');
   expect(mocks.removeSecret).toBeCalledWith('my-owner/my-repo', 'ANOTHER_SECRET');
   expect(mocks.removeSecret).not.toBeCalledWith('my-owner/my-repo', 'BOOM_BAM');
+});
+
+// Tests for the retry functionality
+jest.mock('child_process', () => {
+  const originalModule = jest.requireActual('child_process');
+
+  return {
+    ...originalModule,
+    spawnSync: jest.fn(),
+  };
+});
+
+
+describe('GitHub API retry functionality', () => {
+  const mockSpawnSync = spawnSync as jest.MockedFunction<typeof spawnSync>;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Mock console.error to prevent test output pollution
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  test('executeWithRetry should retry on failure', () => {
+    // Mock spawnSync to fail twice and then succeed
+    mockSpawnSync
+      .mockReturnValueOnce({
+        status: 1,
+        stdout: Buffer.from('API rate limit exceeded'),
+        stderr: Buffer.from(''),
+        pid: 123,
+        output: [],
+        signal: null,
+      })
+      .mockReturnValueOnce({
+        status: 1,
+        stdout: Buffer.from('API rate limit exceeded'),
+        stderr: Buffer.from(''),
+        pid: 123,
+        output: [],
+        signal: null,
+      })
+      .mockReturnValueOnce({
+        status: 0,
+        stdout: Buffer.from('Success'),
+        stderr: Buffer.from(''),
+        pid: 123,
+        output: [],
+        signal: null,
+      });
+
+    // Define retry options with very short backoff times for testing
+    const retryOptions: RetryOptions = {
+      maxRetries: 3,
+      initialBackoff: 10, // 10ms
+      maxBackoff: 100, // 100ms
+      backoffFactor: 2,
+    };
+
+    // Execute a command with retry
+    const result = executeWithRetry(() => mockSpawnSync('gh', ['api', 'test']), retryOptions);
+
+    // Verify the command was called 3 times (2 failures + 1 success)
+    expect(mockSpawnSync).toHaveBeenCalledTimes(3);
+    expect(result.stdout.toString()).toBe('Success');
+  });
+
+  test('executeWithRetry should throw after exhausting retries', () => {
+    // Mock spawnSync to always fail
+    mockSpawnSync.mockReturnValue({
+      status: 1,
+      stdout: Buffer.from('API rate limit exceeded'),
+      stderr: Buffer.from(''),
+      pid: 123,
+      output: [],
+      signal: null,
+    });
+
+    // Define retry options with very short backoff times for testing
+    const retryOptions: RetryOptions = {
+      maxRetries: 2,
+      initialBackoff: 10, // 10ms
+      maxBackoff: 100, // 100ms
+      backoffFactor: 2,
+    };
+
+    // Execute a command with retry and expect it to throw
+    expect(() => {
+      executeWithRetry(() => mockSpawnSync('gh', ['api', 'test']), retryOptions);
+    }).toThrow('API rate limit exceeded');
+
+    // Verify the command was called maxRetries + 1 times
+    expect(mockSpawnSync).toHaveBeenCalledTimes(3); // Initial attempt + 2 retries
+  });
+
+  test('executeWithRetry should use exponential backoff', () => {
+    // Mock Date.now to control time
+    const originalDateNow = Date.now;
+    const mockDateNow = jest.fn();
+    Date.now = mockDateNow;
+
+    // Mock spawnSync to fail twice and then succeed
+    mockSpawnSync
+      .mockReturnValueOnce({
+        status: 1,
+        stdout: Buffer.from('API rate limit exceeded'),
+        stderr: Buffer.from(''),
+        pid: 123,
+        output: [],
+        signal: null,
+      })
+      .mockReturnValueOnce({
+        status: 1,
+        stdout: Buffer.from('API rate limit exceeded'),
+        stderr: Buffer.from(''),
+        pid: 123,
+        output: [],
+        signal: null,
+      })
+      .mockReturnValueOnce({
+        status: 0,
+        stdout: Buffer.from('Success'),
+        stderr: Buffer.from(''),
+        pid: 123,
+        output: [],
+        signal: null,
+      });
+
+    // Set up Date.now to advance time on each call
+    mockDateNow
+      .mockReturnValueOnce(1000) // Initial call
+      .mockReturnValueOnce(1000) // First failure
+      .mockReturnValueOnce(1100) // After first backoff (100ms)
+      .mockReturnValueOnce(1100) // Second failure
+      .mockReturnValueOnce(1300) // After second backoff (200ms)
+      .mockReturnValueOnce(1300); // Success
+
+    // Define retry options with specific backoff times for testing
+    const retryOptions: RetryOptions = {
+      maxRetries: 3,
+      initialBackoff: 100, // 100ms
+      maxBackoff: 1000, // 1000ms
+      backoffFactor: 2,
+    };
+
+    // Execute a command with retry
+    executeWithRetry(() => mockSpawnSync('gh', ['api', 'test']), retryOptions);
+
+    // Verify the command was called 3 times
+    expect(mockSpawnSync).toHaveBeenCalledTimes(3);
+
+    // Restore original Date.now
+    Date.now = originalDateNow;
+  });
 });

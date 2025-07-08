@@ -124,7 +124,7 @@ function removeSecret(repository: string, key: string): void {
  * @param options Retry options
  * @returns The result of the command
  */
-function executeWithRetry<T extends SpawnSyncReturns<Buffer>>(
+export function executeWithRetry<T extends SpawnSyncReturns<Buffer>>(
   command: () => T,
   options: RetryOptions = DEFAULT_RETRY_OPTIONS,
 ): T {
