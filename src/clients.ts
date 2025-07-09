@@ -1,9 +1,51 @@
-import { spawnSync } from 'child_process';
+import { spawnSync, SpawnSyncOptionsWithBufferEncoding, SpawnSyncReturns } from 'child_process';
 import * as readline from 'readline';
 import * as aws from 'aws-sdk';
+// reduce log pollution from SDK v3 upgrade messages
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+require('aws-sdk/lib/maintenance_mode_message').suppress = true;
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const PKG = require('../package.json');
+
+/**
+ * Options for retry mechanism.
+ */
+export interface RetryOptions {
+  /**
+   * Initial backoff time in milliseconds.
+   */
+  readonly initialBackoff: number;
+
+  /**
+   * Maximum backoff time in milliseconds.
+   */
+  readonly maxBackoff: number;
+
+  /**
+   * Backoff factor for exponential backoff.
+   */
+  readonly backoffFactor: number;
+
+  /**
+   * Maximum time to keep retrying in milliseconds.
+   */
+  readonly deadline: number;
+}
+
+/**
+ * Default retry options.
+ *
+ * Based on GitHub API rate limit documentation:
+ * - For secondary rate limits, wait at least 60 seconds (1 minute) before retrying
+ * - Use exponential backoff for persistent rate limit issues
+ */
+const DEFAULT_RETRY_OPTIONS: RetryOptions = {
+  initialBackoff: 60_000, // 60 seconds (1 minute) as recommended by GitHub for secondary rate limits
+  maxBackoff: 3_000_000, // 50 minutes maximum backoff
+  backoffFactor: 2, // Exponential backoff factor
+  deadline: 7_500_000, // 125 minutes default deadline
+};
 
 /**
  * Options for `getSecret`.
@@ -22,10 +64,10 @@ export interface SecretOptions {
 export interface Clients {
   getSecret(secretId: string, options?: SecretOptions): Promise<Secret>;
   confirmPrompt(): Promise<boolean>;
-  getRepositoryName(): string;
-  storeSecret(repository: string, key: string, value: string): void;
-  listSecrets(repository: string): string[];
-  removeSecret(repository: string, key: string): void;
+  getRepositoryName(): Promise<string>;
+  storeSecret(repository: string, key: string, value: string): Promise<void>;
+  listSecrets(repository: string): Promise<string[]>;
+  removeSecret(repository: string, key: string): Promise<void>;
   log(text?: string): void;
 }
 
@@ -43,9 +85,9 @@ function log(text: string = '') {
   console.error(text);
 }
 
-function getRepositoryName(): string {
-  const result = assertSuccess(spawnSync('gh', ['repo', 'view', '--json', 'nameWithOwner'], { stdio: ['ignore', 'pipe', 'inherit'] }));
-  const output = result.stdout.toString('utf-8');
+async function getRepositoryName(): Promise<string> {
+  const result = await spawnWithRetry(['gh', 'repo', 'view', '--json', 'nameWithOwner']);
+  const output = result.stdout;
 
   try {
     const repo = JSON.parse(output);
@@ -55,21 +97,71 @@ function getRepositoryName(): string {
   }
 }
 
-function storeSecret(repository: string, name: string, value: string): void {
+async function storeSecret(repository: string, name: string, value: string): Promise<void> {
   const args = ['secret', 'set', '--repo', repository, name];
-  assertSuccess(spawnSync('gh', args, { input: value, stdio: ['pipe', 'inherit', 'inherit'] }));
+  await spawnWithRetry(['gh', ...args], { input: value });
 }
 
-function listSecrets(repository: string): string[] {
+async function listSecrets(repository: string): Promise<string[]> {
   const args = ['secret', 'list', '--repo', repository];
-  const result = assertSuccess(spawnSync('gh', args, { stdio: ['ignore', 'pipe', 'inherit'] }));
-  const stdout = result.stdout.toString('utf-8').trim();
-  return stdout.split('\n').map(line => line.split('\t')[0]);
+  const result = await spawnWithRetry(['gh', ...args]);
+  const stdout = result.stdout.trim();
+  if (!stdout) {
+    return [];
+  }
+  return stdout.split('\n').map((line: string) => line.split('\t')[0]);
 }
 
-function removeSecret(repository: string, key: string): void {
+async function removeSecret(repository: string, key: string): Promise<void> {
   const args = ['secret', 'remove', '--repo', repository, key];
-  assertSuccess(spawnSync('gh', args, { stdio: ['ignore', 'inherit', 'inherit'] }));
+  await spawnWithRetry(['gh', ...args]);
+}
+
+export function spawnWithRetry(argv: string[], options: Omit<SpawnSyncOptionsWithBufferEncoding, 'stdio'> = {}, retryOptions?: RetryOptions) {
+  return executeWithRetry(() => spawnSync(argv[0], argv.slice(1), {
+    stdio: [
+      options.input ? 'pipe' : 'ignore',
+      'pipe',
+      'pipe',
+    ],
+    encoding: 'utf-8',
+  }), retryOptions);
+}
+
+/**
+ * Execute a command with exponential backoff and retries.
+ *
+ * @param command Function that executes a command and returns the result
+ * @param options Retry options
+ * @returns The result of the command
+ */
+export async function executeWithRetry<T extends SpawnSyncReturns<string>>(
+  command: () => T,
+  options: RetryOptions = DEFAULT_RETRY_OPTIONS,
+): Promise<T> {
+  const deadline = Date.now() + options.deadline;
+  let sleepTime = options.initialBackoff;
+
+  while (true) {
+    try {
+      const result = command();
+
+      return assertSuccess(result);
+    } catch (error) {
+      if (error instanceof RetryableError && Date.now() < deadline) {
+        // Sleep with jitter
+        const backoff = Math.floor(Math.random() * sleepTime);
+        sleepTime = Math.min(sleepTime * options.backoffFactor, options.maxBackoff);
+
+        console.error(`Retryable error: ${error.message} (Retrying in ${Math.round(backoff / 1000)}s)`);
+        await sleep(backoff);
+
+        continue;
+      }
+
+      throw error;
+    }
+  }
 }
 
 function confirmPrompt(): Promise<boolean> {
@@ -128,7 +220,17 @@ function assertSuccess<A extends ReturnType<typeof spawnSync>>(x: A): A {
     throw new Error(`Process exited with signal ${x.signal}`);
   }
   if (x.status != null && x.status > 0) {
-    throw new Error(`Process exited with code ${x.status}`);
+    if (x.stderr.includes('API rate limit exceeded')) {
+      throw new RetryableError(`Process exited with code ${x.status}: ${String(x.stderr).trim()}`);
+    }
+    throw new Error(`Process exited with code ${x.status}: ${x.stderr}`);
   }
   return x;
 }
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+
+class RetryableError extends Error { }

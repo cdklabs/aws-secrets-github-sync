@@ -2,7 +2,7 @@ import * as yargs from 'yargs';
 import { updateSecrets } from './update-secrets';
 
 async function main() {
-  const argv = yargs
+  const argv = await yargs
     .usage('$0 -s SECRET [OPTIONS]')
     .usage('$0 -C secrets.json')
     .option('secret', { alias: 's', describe: 'Secrets Manager secret ID or ARN', type: 'string', required: true })
@@ -22,7 +22,8 @@ async function main() {
     .array('keys')
     .string('keys')
     .config('config') // allow reading from a config file
-    .argv;
+    .strict()
+    .parse();
 
   if (argv.debug) {
     console.error({ argv });
@@ -37,7 +38,7 @@ async function main() {
     confirm: !argv.yes,
     prune: argv.prune,
     profile: argv.profile,
-    keep: argv.keep,
+    keep: argv.keep.map(String),
   });
 }
 

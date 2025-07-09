@@ -82,7 +82,7 @@ export async function updateSecrets(options: UpdateSecretsOptions) {
     region = secretId.split(':')[3];
   }
 
-  const repository: string = options.repository ?? c.getRepositoryName();
+  const repository: string = options.repository ?? await c.getRepositoryName();
   const secret = await c.getSecret(options.secret, { region, profile: options.profile });
   const keys = options.keys ?? [];
   const prune = options.prune ?? false;
@@ -117,7 +117,7 @@ export async function updateSecrets(options: UpdateSecretsOptions) {
   }
 
   // find all the secrets in the repo that don't correspond to keys in the secret
-  const existingKeys = c.listSecrets(repository);
+  const existingKeys = await c.listSecrets(repository);
   const pruneCandidates = existingKeys.filter(key => !keys.includes(key));
   const keysToPrune = pruneCandidates.filter(key => !keep.includes(key));
   const keysToKeep = pruneCandidates.filter(key => keep.includes(key));
@@ -153,13 +153,13 @@ export async function updateSecrets(options: UpdateSecretsOptions) {
       continue; // skip if key is not in "keys"
     }
 
-    c.storeSecret(repository, key, value);
+    await c.storeSecret(repository, key, value);
   }
 
   // prune keys that are not in the secret
   if (prune) {
     for (const key of keysToPrune) {
-      c.removeSecret(repository, key);
+      await c.removeSecret(repository, key);
     }
   }
 }
