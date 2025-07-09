@@ -1,4 +1,4 @@
-import { spawnSync, SpawnSyncReturns } from 'child_process';
+import { spawnSync, SpawnSyncOptionsWithBufferEncoding, SpawnSyncReturns } from 'child_process';
 import * as readline from 'readline';
 import * as aws from 'aws-sdk';
 // reduce log pollution from SDK v3 upgrade messages
@@ -43,7 +43,7 @@ export interface RetryOptions {
 const DEFAULT_RETRY_OPTIONS: RetryOptions = {
   initialBackoff: 60_000, // 60 seconds (1 minute) as recommended by GitHub for secondary rate limits
   maxBackoff: 3_000_000, // 50 minutes maximum backoff
-  backoffFactor: 3, // Exponential backoff factor
+  backoffFactor: 2, // Exponential backoff factor
   deadline: 7_500_000, // 125 minutes default deadline
 };
 
@@ -86,8 +86,8 @@ function log(text: string = '') {
 }
 
 async function getRepositoryName(): Promise<string> {
-  const result = await executeWithRetry(() => spawnSync('gh', ['repo', 'view', '--json', 'nameWithOwner'], { stdio: ['ignore', 'pipe', 'inherit'] }));
-  const output = result.stdout.toString('utf-8');
+  const result = await spawnWithRetry(['gh', 'repo', 'view', '--json', 'nameWithOwner']);
+  const output = result.stdout;
 
   try {
     const repo = JSON.parse(output);
@@ -99,13 +99,13 @@ async function getRepositoryName(): Promise<string> {
 
 async function storeSecret(repository: string, name: string, value: string): Promise<void> {
   const args = ['secret', 'set', '--repo', repository, name];
-  await executeWithRetry(() => spawnSync('gh', args, { input: value, stdio: ['pipe', 'inherit', 'inherit'] }));
+  await spawnWithRetry(['gh', ...args], { input: value });
 }
 
 async function listSecrets(repository: string): Promise<string[]> {
   const args = ['secret', 'list', '--repo', repository];
-  const result = await executeWithRetry(() => spawnSync('gh', args, { stdio: ['ignore', 'pipe', 'inherit'] }));
-  const stdout = result.stdout.toString('utf-8').trim();
+  const result = await spawnWithRetry(['gh', ...args]);
+  const stdout = result.stdout.trim();
   if (!stdout) {
     return [];
   }
@@ -114,7 +114,18 @@ async function listSecrets(repository: string): Promise<string[]> {
 
 async function removeSecret(repository: string, key: string): Promise<void> {
   const args = ['secret', 'remove', '--repo', repository, key];
-  await executeWithRetry(() => spawnSync('gh', args, { stdio: ['ignore', 'inherit', 'inherit'] }));
+  await spawnWithRetry(['gh', ...args]);
+}
+
+export function spawnWithRetry(argv: string[], options: Omit<SpawnSyncOptionsWithBufferEncoding, 'stdio'> = {}, retryOptions?: RetryOptions) {
+  return executeWithRetry(() => spawnSync(argv[0], argv.slice(1), {
+    stdio: [
+      options.input ? 'pipe' : 'ignore',
+      'pipe',
+      'pipe',
+    ],
+    encoding: 'utf-8',
+  }), retryOptions);
 }
 
 /**
@@ -124,47 +135,31 @@ async function removeSecret(repository: string, key: string): Promise<void> {
  * @param options Retry options
  * @returns The result of the command
  */
-export async function executeWithRetry<T extends SpawnSyncReturns<Buffer>>(
+export async function executeWithRetry<T extends SpawnSyncReturns<string>>(
   command: () => T,
   options: RetryOptions = DEFAULT_RETRY_OPTIONS,
 ): Promise<T> {
-  let lastError: Error | undefined;
-  let attempt = 0;
-  const startTime = Date.now();
+  const deadline = Date.now() + options.deadline;
+  let sleepTime = options.initialBackoff;
 
-  // Continue until we reach the deadline
   while (true) {
     try {
       const result = command();
+
       return assertSuccess(result);
     } catch (error) {
-      lastError = error as Error;
-      attempt++;
+      if (error instanceof RetryableError && Date.now() < deadline) {
+        // Sleep with jitter
+        const backoff = Math.floor(Math.random() * sleepTime);
+        sleepTime = Math.min(sleepTime * options.backoffFactor, options.maxBackoff);
 
-      // Check if we've reached the deadline
-      if (Date.now() - startTime >= options.deadline) {
-        console.error(`GitHub API request failed: deadline of ${options.deadline}ms reached after ${attempt} attempts`);
-        throw lastError;
+        console.error(`Retryable error: ${error.message} (Retrying in ${Math.round(backoff / 1000)}s)`);
+        await sleep(backoff);
+
+        continue;
       }
 
-      // Calculate backoff time with exponential increase
-      const backoffTime = Math.min(
-        options.initialBackoff * Math.pow(options.backoffFactor, attempt - 1),
-        options.maxBackoff,
-      );
-
-      // Calculate time left before deadline
-      const timeLeft = options.deadline - (Date.now() - startTime);
-
-      // If the next backoff would exceed the deadline, don't wait the full time
-      const actualBackoff = Math.min(backoffTime, timeLeft);
-
-      // Log retry attempt
-      console.error(`Command failed (attempt ${attempt}, ${Math.round(timeLeft / 1000)}s left). Retrying in ${Math.round(actualBackoff / 1000)}s...`);
-      console.error(`Error: ${lastError.message}`);
-
-      // Wait for backoff time before retrying
-      await new Promise(resolve => setTimeout(resolve, actualBackoff));
+      throw error;
     }
   }
 }
@@ -225,7 +220,17 @@ function assertSuccess<A extends ReturnType<typeof spawnSync>>(x: A): A {
     throw new Error(`Process exited with signal ${x.signal}`);
   }
   if (x.status != null && x.status > 0) {
-    throw new Error(`Process exited with code ${x.status}`);
+    if (x.stderr.includes('API rate limit exceeded')) {
+      throw new RetryableError(`Process exited with code ${x.status}: ${String(x.stderr).trim()}`);
+    }
+    throw new Error(`Process exited with code ${x.status}: ${x.stderr}`);
   }
   return x;
 }
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+
+class RetryableError extends Error { }

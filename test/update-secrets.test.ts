@@ -1,6 +1,8 @@
-import { spawnSync } from 'child_process';
+import * as child_process from 'child_process';
 import { updateSecrets } from '../src';
-import { Clients, RetryOptions, executeWithRetry } from '../src/clients';
+import { Clients, spawnWithRetry } from '../src/clients';
+
+jest.useFakeTimers();
 
 const secretJson = {
   NPM_TOKEN: 'my-npm-token',
@@ -12,6 +14,7 @@ const secretJson = {
 let mocks: Clients;
 
 beforeEach(() => {
+  jest.resetAllMocks();
   mocks = {
     getRepositoryName: jest.fn().mockResolvedValue('my-owner/my-repo'),
     getSecret: jest.fn().mockResolvedValue({ arn: 'secret-arn', json: secretJson, region: 'us-east-1' }),
@@ -21,10 +24,6 @@ beforeEach(() => {
     removeSecret: jest.fn().mockResolvedValue(undefined),
     log: jest.fn(),
   };
-});
-
-afterEach(() => {
-  jest.resetAllMocks();
 });
 
 test('fails if neither "allKeys" nor "keys" are specified', async () => {
@@ -234,10 +233,9 @@ jest.mock('child_process', () => {
 
 
 describe('GitHub API retry functionality', () => {
-  const mockSpawnSync = spawnSync as jest.MockedFunction<typeof spawnSync>;
+  const mockSpawnSync = jest.spyOn(child_process, 'spawnSync');
 
   beforeEach(() => {
-    jest.clearAllMocks();
     // Mock console.error to prevent test output pollution
     jest.spyOn(console, 'error').mockImplementation(() => {});
   });
@@ -245,220 +243,80 @@ describe('GitHub API retry functionality', () => {
   test('executeWithRetry should retry on failure', async () => {
     // Mock spawnSync to fail twice and then succeed
     mockSpawnSync
-      .mockReturnValueOnce({
-        status: 1,
-        stdout: Buffer.from('API rate limit exceeded'),
-        stderr: Buffer.from(''),
-        pid: 123,
-        output: [],
-        signal: null,
-      })
-      .mockReturnValueOnce({
-        status: 1,
-        stdout: Buffer.from('API rate limit exceeded'),
-        stderr: Buffer.from(''),
-        pid: 123,
-        output: [],
-        signal: null,
-      })
-      .mockReturnValueOnce({
-        status: 0,
-        stdout: Buffer.from('Success'),
-        stderr: Buffer.from(''),
-        pid: 123,
-        output: [],
-        signal: null,
-      });
-
-    // Define retry options with very short backoff times for testing
-    const retryOptions: RetryOptions = {
-      initialBackoff: 10, // 10ms
-      maxBackoff: 100, // 100ms
-      backoffFactor: 2,
-      deadline: 1000, // 1 second deadline
-    };
+      .mockReturnValueOnce(errorExit('API rate limit exceeded'))
+      .mockReturnValueOnce(errorExit('API rate limit exceeded'))
+      .mockReturnValueOnce(successExit());
 
     // Execute a command with retry
-    const result = await executeWithRetry(() => mockSpawnSync('gh', ['api', 'test']), retryOptions);
+    const result = await runFakeTimers(spawnWithRetry(['gh', 'api', 'test']));
 
     // Verify the command was called 3 times (2 failures + 1 success)
     expect(mockSpawnSync).toHaveBeenCalledTimes(3);
     expect(result.stdout.toString()).toBe('Success');
   });
 
-  test('executeWithRetry should throw after exhausting retries', async () => {
-    // Mock spawnSync to always fail
-    mockSpawnSync.mockReturnValue({
-      status: 1,
-      stdout: Buffer.from('API rate limit exceeded'),
-      stderr: Buffer.from(''),
-      pid: 123,
-      output: [],
-      signal: null,
+  describe('with an eternally failing call', () => {
+    beforeEach(() => {
+      // Mock spawnSync to always fail
+      mockSpawnSync.mockReturnValue(errorExit('API rate limit exceeded'));
     });
 
-    // Define retry options with very short backoff times for testing
-    const retryOptions: RetryOptions = {
-      initialBackoff: 10, // 10ms
-      maxBackoff: 100, // 100ms
-      backoffFactor: 2,
-      deadline: 500, // 500ms deadline
-    };
-
-    // Execute a command with retry and expect it to throw
-    await expect(
-      executeWithRetry(() => mockSpawnSync('gh', ['api', 'test']), retryOptions),
-    ).rejects.toThrow('Process exited with code 1');
-
-    expect(mockSpawnSync).toHaveBeenCalledTimes(9);
-  });
-
-  test('executeWithRetry should use exponential backoff', async () => {
-    // Mock setTimeout to track sleep calls
-    const originalSetTimeout = setTimeout;
-    const mockSetTimeout = jest.fn().mockImplementation((callback) => {
-      callback(); // Execute callback immediately for testing
-      return 123; // Return a timeout ID
+    test('executeWithRetry eventually fails', async () => {
+      // Execute a command with retry and expect it to throw
+      await runFakeTimers(expect(spawnWithRetry(['gh', 'api', 'test'])).rejects.toThrow(/API rate limit exceeded/)); // rejects.toThrow(/API rate limit exceeded/);
     });
-    global.setTimeout = mockSetTimeout as any;
 
-    // Mock spawnSync to fail twice and then succeed
-    mockSpawnSync
-      .mockReturnValueOnce({
-        status: 1,
-        stdout: Buffer.from('API rate limit exceeded'),
-        stderr: Buffer.from(''),
-        pid: 123,
-        output: [],
-        signal: null,
-      })
-      .mockReturnValueOnce({
-        status: 1,
-        stdout: Buffer.from('API rate limit exceeded'),
-        stderr: Buffer.from(''),
-        pid: 123,
-        output: [],
-        signal: null,
-      })
-      .mockReturnValueOnce({
-        status: 0,
-        stdout: Buffer.from('Success'),
-        stderr: Buffer.from(''),
-        pid: 123,
-        output: [],
-        signal: null,
-      });
+    test('executeWithRetry does not fail before the deadline', async () => {
+      const eventuallyFailingCall = spawnWithRetry(['gh', 'api', 'test']);
+      const deadline = new Promise((resolve) => setTimeout(() => resolve('deadline reached'), 7_000_000)); // Slightly less than 2 hours
 
-    // Define retry options with specific backoff times for testing
-    const retryOptions: RetryOptions = {
-      initialBackoff: 100, // 100ms
-      maxBackoff: 1000, // 1000ms
-      backoffFactor: 2,
-      deadline: 1000, // 1 second deadline
-    };
-
-    // Execute a command with retry
-    await executeWithRetry(() => mockSpawnSync('gh', ['api', 'test']), retryOptions);
-
-    // Verify the command was called 3 times
-    expect(mockSpawnSync).toHaveBeenCalledTimes(3);
-
-    // Verify setTimeout was called with the correct backoff times
-    expect(mockSetTimeout).toHaveBeenCalledTimes(2); // Called twice for the two failures
-    expect(mockSetTimeout.mock.calls[0][1]).toBe(100); // First backoff: 100ms
-    expect(mockSetTimeout.mock.calls[1][1]).toBe(200); // Second backoff: 200ms (100ms * 2)
-
-    // Restore original setTimeout
-    global.setTimeout = originalSetTimeout;
+      // When we race these promises, the deadline will always win.
+      await expect(
+        runFakeTimers(Promise.race([eventuallyFailingCall, deadline])),
+      ).resolves.toEqual('deadline reached');
+    });
   });
 
-  test('executeWithRetry should retry on any error', async () => {
+  test('executeWithRetry only retries on throttles', async () => {
     // Mock spawnSync to fail with a non-rate-limit error and then succeed
     mockSpawnSync
-      .mockReturnValueOnce({
-        status: 1,
-        stdout: Buffer.from('Some other error'),
-        stderr: Buffer.from(''),
-        pid: 123,
-        output: [],
-        signal: null,
-      })
-      .mockReturnValueOnce({
-        status: 0,
-        stdout: Buffer.from('Success'),
-        stderr: Buffer.from(''),
-        pid: 123,
-        output: [],
-        signal: null,
-      });
+      .mockReturnValueOnce(errorExit('Some other error'))
+      .mockReturnValueOnce(successExit());
 
-    // Define retry options with very short backoff times for testing
-    const retryOptions: RetryOptions = {
-      initialBackoff: 10, // 10ms
-      maxBackoff: 100, // 100ms
-      backoffFactor: 2,
-      deadline: 1000, // 1 second deadline
-    };
-
-    // Execute a command with retry
-    const result = await executeWithRetry(() => mockSpawnSync('gh', ['api', 'test']), retryOptions);
-
-    // Verify the command was called twice (1 failure + 1 success)
-    expect(mockSpawnSync).toHaveBeenCalledTimes(2);
-    expect(result.stdout.toString()).toBe('Success');
-  });
-
-  test('executeWithRetry should respect deadline', async () => {
-    // Mock setTimeout to execute callbacks immediately
-    const originalSetTimeout = setTimeout;
-    const mockSetTimeout = jest.fn().mockImplementation((callback) => {
-      callback(); // Execute callback immediately for testing
-      return 123; // Return a timeout ID
-    });
-    global.setTimeout = mockSetTimeout as any;
-
-    // Mock Date.now to control time
-    const originalDateNow = Date.now;
-    const mockDateNow = jest.fn();
-    Date.now = mockDateNow;
-
-    // Mock spawnSync to always fail with rate limit error
-    mockSpawnSync.mockReturnValue({
-      status: 1,
-      stdout: Buffer.from('API rate limit exceeded'),
-      stderr: Buffer.from(''),
-      pid: 123,
-      output: [],
-      signal: null,
-    });
-
-    // Set up Date.now to advance time on each call
-    mockDateNow
-      .mockReturnValueOnce(1000) // Initial call
-      .mockReturnValueOnce(1000) // First failure
-      .mockReturnValueOnce(1100) // After first backoff
-      .mockReturnValueOnce(1100) // Second failure
-      .mockReturnValueOnce(1300) // After second backoff - exceeds deadline
-      .mockReturnValueOnce(1300); // Check deadline
-
-    // Define retry options with deadline
-    const retryOptions: RetryOptions = {
-      initialBackoff: 10,
-      maxBackoff: 100,
-      backoffFactor: 2,
-      deadline: 250, // 250ms deadline (will be exceeded after second retry)
-    };
-
-    // Execute a command with retry and expect it to throw after deadline
-    await expect(
-      executeWithRetry(() => mockSpawnSync('gh', ['api', 'test']), retryOptions),
-    ).rejects.toThrow('Process exited with code 1');
-
-    // Verify the command was called thrice before deadline was reached
-    expect(mockSpawnSync).toHaveBeenCalledTimes(3);
-
-    // Restore original functions
-    Date.now = originalDateNow;
-    global.setTimeout = originalSetTimeout;
+    await runFakeTimers(expect(spawnWithRetry(['gh', 'api', 'test'])).rejects.toThrow(/Some other error/));
   });
 });
+
+/**
+ * Run the timers, then return the promise so you can chain these calls.
+ *
+ * To test for a rejection, put the `runFakeTimers` around the `expect`, not around
+ * the promise going into `expect` (the `catch` needs to be attached to the promise
+ * before the timers are run).
+ */
+async function runFakeTimers<T>(promise: Promise<T>): Promise<T> {
+  await jest.runAllTimersAsync();
+  return promise;
+}
+
+function errorExit(message: string) {
+  return {
+    status: 1,
+    stderr: Buffer.from(message),
+    stdout: Buffer.from(''),
+    pid: 123,
+    output: [],
+    signal: null,
+  };
+}
+
+function successExit() {
+  return {
+    status: 0,
+    stderr: Buffer.from(''),
+    stdout: Buffer.from('Success'),
+    pid: 123,
+    output: [],
+    signal: null,
+  };
+}
