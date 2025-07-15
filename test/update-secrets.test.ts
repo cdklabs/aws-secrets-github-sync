@@ -1,6 +1,6 @@
 import * as child_process from 'child_process';
 import { updateSecrets } from '../src';
-import { Clients, executeWithRetry, spawnWithRetry } from '../src/clients';
+import { Clients, spawnWithRetry } from '../src/clients';
 
 jest.useFakeTimers();
 
@@ -231,6 +231,40 @@ jest.mock('child_process', () => {
   };
 });
 
+describe('spawnWithRetry stdio', () => {
+  let spawnSyncMock: jest.SpyInstance<any>;
+  beforeEach(() => {
+    // Mock child_process.spawnSync to capture how it's called
+    spawnSyncMock = jest.spyOn(child_process, 'spawnSync').mockImplementation(() => {
+      return successExit();
+    });
+  });
+  test('pipe/inherit/inherit when input is provided', async () => {
+    await spawnWithRetry(['gh', 'command'], { input: 'test-input' });
+
+    expect(spawnSyncMock).toHaveBeenCalledWith(
+      'gh',
+      ['command'],
+      expect.objectContaining({
+        stdio: ['pipe', 'inherit', 'inherit'],
+        encoding: 'utf-8',
+      }),
+    );
+  });
+
+  test('ignore/pipe/inherit when no input is provided', async () => {
+    await spawnWithRetry(['gh', 'command']);
+
+    expect(spawnSyncMock).toHaveBeenCalledWith(
+      'gh',
+      ['command'],
+      expect.objectContaining({
+        stdio: ['ignore', 'pipe', 'inherit'],
+        encoding: 'utf-8',
+      }),
+    );
+  });
+});
 
 describe('GitHub API retry functionality', () => {
   const mockSpawnSync = jest.spyOn(child_process, 'spawnSync');
