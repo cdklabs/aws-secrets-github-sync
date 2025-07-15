@@ -117,12 +117,13 @@ async function removeSecret(repository: string, key: string): Promise<void> {
   await spawnWithRetry(['gh', ...args]);
 }
 
-export function spawnWithRetry(argv: string[], options: Omit<SpawnSyncOptionsWithBufferEncoding, 'stdio'> = {}, retryOptions?: RetryOptions) {
+export async function spawnWithRetry(argv: string[], options: Omit<SpawnSyncOptionsWithBufferEncoding, 'stdio'> = {}, retryOptions?: RetryOptions) {
   return executeWithRetry(() => spawnSync(argv[0], argv.slice(1), {
+    ...(options.input ? { input: options.input } : {}),
     stdio: [
       options.input ? 'pipe' : 'ignore',
-      'pipe',
-      'pipe',
+      options.input ? 'inherit': 'pipe',
+      'inherit',
     ],
     encoding: 'utf-8',
   }), retryOptions);

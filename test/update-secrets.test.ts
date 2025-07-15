@@ -1,6 +1,6 @@
 import * as child_process from 'child_process';
 import { updateSecrets } from '../src';
-import { Clients, spawnWithRetry } from '../src/clients';
+import { Clients, executeWithRetry, spawnWithRetry } from '../src/clients';
 
 jest.useFakeTimers();
 
@@ -68,14 +68,14 @@ test('"allKeys" will update all secrets', async () => {
     allKeys: true,
   });
 
-  expect(mocks.getSecret).toBeCalledWith('my-secret-name', { region: undefined });
-  expect(mocks.confirmPrompt).toBeCalledTimes(1);
-  expect(mocks.storeSecret).toBeCalledTimes(Object.keys(secretJson).length);
+  expect(mocks.getSecret).toHaveBeenCalledWith('my-secret-name', { region: undefined });
+  expect(mocks.confirmPrompt).toHaveBeenCalledTimes(1);
+  expect(mocks.storeSecret).toHaveBeenCalledTimes(Object.keys(secretJson).length);
   for (const [key, secret] of Object.entries(secretJson)) {
-    expect(mocks.storeSecret).toBeCalledWith('my-owner/my-repo', key, secret);
+    expect(mocks.storeSecret).toHaveBeenCalledWith('my-owner/my-repo', key, secret);
   }
-  expect(mocks.listSecrets).toBeCalled();
-  expect(mocks.removeSecret).not.toBeCalled();
+  expect(mocks.listSecrets).toHaveBeenCalled();
+  expect(mocks.removeSecret).not.toHaveBeenCalled();
 });
 
 test('"allKeys" is okay with an empty "keys"', async () => {
@@ -86,9 +86,9 @@ test('"allKeys" is okay with an empty "keys"', async () => {
     keys: [],
   });
 
-  expect(mocks.storeSecret).toBeCalledTimes(Object.keys(secretJson).length);
-  expect(mocks.listSecrets).toBeCalled();
-  expect(mocks.removeSecret).not.toBeCalled();
+  expect(mocks.storeSecret).toHaveBeenCalledTimes(Object.keys(secretJson).length);
+  expect(mocks.listSecrets).toHaveBeenCalled();
+  expect(mocks.removeSecret).not.toHaveBeenCalled();
 });
 
 test('region extracted from arn', async () => {
@@ -100,9 +100,9 @@ test('region extracted from arn', async () => {
     allKeys: true,
   });
 
-  expect(mocks.getSecret).toBeCalledWith(arn, { region: 'us-east-1' });
-  expect(mocks.listSecrets).toBeCalled();
-  expect(mocks.removeSecret).not.toBeCalled();
+  expect(mocks.getSecret).toHaveBeenCalledWith(arn, { region: 'us-east-1' });
+  expect(mocks.listSecrets).toHaveBeenCalled();
+  expect(mocks.removeSecret).not.toHaveBeenCalled();
 });
 
 test('"keys" can be used to specify which keys to store', async () => {
@@ -112,11 +112,11 @@ test('"keys" can be used to specify which keys to store', async () => {
     keys: ['NPM_TOKEN', 'TWINE_USERNAME'],
   });
 
-  expect(mocks.storeSecret).toBeCalledTimes(2);
-  expect(mocks.storeSecret).toBeCalledWith('my-owner/my-repo', 'NPM_TOKEN', 'my-npm-token');
-  expect(mocks.storeSecret).toBeCalledWith('my-owner/my-repo', 'TWINE_USERNAME', 'my-twine-username');
-  expect(mocks.listSecrets).toBeCalled();
-  expect(mocks.removeSecret).not.toBeCalled();
+  expect(mocks.storeSecret).toHaveBeenCalledTimes(2);
+  expect(mocks.storeSecret).toHaveBeenCalledWith('my-owner/my-repo', 'NPM_TOKEN', 'my-npm-token');
+  expect(mocks.storeSecret).toHaveBeenCalledWith('my-owner/my-repo', 'TWINE_USERNAME', 'my-twine-username');
+  expect(mocks.listSecrets).toHaveBeenCalled();
+  expect(mocks.removeSecret).not.toHaveBeenCalled();
 });
 
 test('fails if one of the keys does not exist in the secret', async () => {
@@ -136,8 +136,8 @@ test('stops if user did not confirm', async () => {
     keys: ['NPM_TOKEN', 'TWINE_USERNAME'],
   });
 
-  expect(mocks.storeSecret).not.toBeCalled();
-  expect(mocks.removeSecret).not.toBeCalled();
+  expect(mocks.storeSecret).not.toHaveBeenCalled();
+  expect(mocks.removeSecret).not.toHaveBeenCalled();
 });
 
 test('explicit repository name can be specified', async () => {
@@ -148,11 +148,11 @@ test('explicit repository name can be specified', async () => {
     repository: 'foo/bar',
   });
 
-  expect(mocks.storeSecret).toBeCalledTimes(2);
-  expect(mocks.storeSecret).toBeCalledWith('foo/bar', 'NPM_TOKEN', 'my-npm-token');
-  expect(mocks.storeSecret).toBeCalledWith('foo/bar', 'TWINE_USERNAME', 'my-twine-username');
-  expect(mocks.listSecrets).toBeCalled();
-  expect(mocks.removeSecret).not.toBeCalled();
+  expect(mocks.storeSecret).toHaveBeenCalledTimes(2);
+  expect(mocks.storeSecret).toHaveBeenCalledWith('foo/bar', 'NPM_TOKEN', 'my-npm-token');
+  expect(mocks.storeSecret).toHaveBeenCalledWith('foo/bar', 'TWINE_USERNAME', 'my-twine-username');
+  expect(mocks.listSecrets).toHaveBeenCalled();
+  expect(mocks.removeSecret).not.toHaveBeenCalled();
 });
 
 test('useful error if secret is not an object', async () => {
@@ -174,10 +174,10 @@ test('confirm: false can disable interactive confirmation', async () => {
     confirm: false,
   });
 
-  expect(mocks.confirmPrompt).not.toBeCalled();
-  expect(mocks.storeSecret).toBeCalledTimes(Object.keys(secretJson).length);
-  expect(mocks.listSecrets).toBeCalled();
-  expect(mocks.removeSecret).not.toBeCalled();
+  expect(mocks.confirmPrompt).not.toHaveBeenCalled();
+  expect(mocks.storeSecret).toHaveBeenCalledTimes(Object.keys(secretJson).length);
+  expect(mocks.listSecrets).toHaveBeenCalled();
+  expect(mocks.removeSecret).not.toHaveBeenCalled();
 });
 
 test('prune will remove keys', async () => {
@@ -188,10 +188,10 @@ test('prune will remove keys', async () => {
     prune: true,
   });
 
-  expect(mocks.storeSecret).toBeCalledTimes(Object.keys(secretJson).length);
-  expect(mocks.listSecrets).toBeCalledWith('my-owner/my-repo');
-  expect(mocks.removeSecret).toBeCalledWith('my-owner/my-repo', 'ANOTHER_SECRET');
-  expect(mocks.removeSecret).toBeCalledWith('my-owner/my-repo', 'BOOM_BAM');
+  expect(mocks.storeSecret).toHaveBeenCalledTimes(Object.keys(secretJson).length);
+  expect(mocks.listSecrets).toHaveBeenCalledWith('my-owner/my-repo');
+  expect(mocks.removeSecret).toHaveBeenCalledWith('my-owner/my-repo', 'ANOTHER_SECRET');
+  expect(mocks.removeSecret).toHaveBeenCalledWith('my-owner/my-repo', 'BOOM_BAM');
 });
 
 test('update secrets accepts a profile', async () => {
@@ -202,7 +202,7 @@ test('update secrets accepts a profile', async () => {
     profile: 'my-profile',
   });
 
-  expect(mocks.getSecret).toBeCalledWith('my-secret-name', { profile: 'my-profile' });
+  expect(mocks.getSecret).toHaveBeenCalledWith('my-secret-name', { profile: 'my-profile' });
 });
 
 test('"keep" can be used to retain keys depite prune', async () => {
@@ -214,10 +214,10 @@ test('"keep" can be used to retain keys depite prune', async () => {
     keep: ['BOOM_BAM', 'LALALALA'],
   });
 
-  expect(mocks.storeSecret).toBeCalledTimes(Object.keys(secretJson).length);
-  expect(mocks.listSecrets).toBeCalledWith('my-owner/my-repo');
-  expect(mocks.removeSecret).toBeCalledWith('my-owner/my-repo', 'ANOTHER_SECRET');
-  expect(mocks.removeSecret).not.toBeCalledWith('my-owner/my-repo', 'BOOM_BAM');
+  expect(mocks.storeSecret).toHaveBeenCalledTimes(Object.keys(secretJson).length);
+  expect(mocks.listSecrets).toHaveBeenCalledWith('my-owner/my-repo');
+  expect(mocks.removeSecret).toHaveBeenCalledWith('my-owner/my-repo', 'ANOTHER_SECRET');
+  expect(mocks.removeSecret).not.toHaveBeenCalledWith('my-owner/my-repo', 'BOOM_BAM');
 });
 
 // Tests for the retry functionality
