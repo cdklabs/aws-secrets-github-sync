@@ -24,6 +24,7 @@ const project = new CdklabsTypeScriptProject({
   ],
   autoApproveUpgrades: true,
   autoApproveOptions: { allowedUsernames: ['cdklabs-automation'] },
+  enablePRAutoMerge: true,
 });
 
 //----------------------------------------------------
