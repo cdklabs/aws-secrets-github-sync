@@ -239,27 +239,27 @@ describe('spawnWithRetry stdio', () => {
       return successExit();
     });
   });
-  test('pipe/inherit/inherit when input is provided', async () => {
+  test('stdin=pipe when input is provided', async () => {
     await spawnWithRetry(['gh', 'command'], { input: 'test-input' });
 
     expect(spawnSyncMock).toHaveBeenCalledWith(
       'gh',
       ['command'],
       expect.objectContaining({
-        stdio: ['pipe', 'inherit', 'inherit'],
+        stdio: ['pipe', expect.anything(), expect.anything()],
         encoding: 'utf-8',
       }),
     );
   });
 
-  test('ignore/pipe/inherit when no input is provided', async () => {
+  test('stdin=ignore when no input is provided', async () => {
     await spawnWithRetry(['gh', 'command']);
 
     expect(spawnSyncMock).toHaveBeenCalledWith(
       'gh',
       ['command'],
       expect.objectContaining({
-        stdio: ['ignore', 'pipe', 'inherit'],
+        stdio: ['ignore', expect.anything(), expect.anything()],
         encoding: 'utf-8',
       }),
     );
@@ -272,6 +272,23 @@ describe('GitHub API retry functionality', () => {
   beforeEach(() => {
     // Mock console.error to prevent test output pollution
     jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  test('spawn is called capturing stderr, so we can read any error messages', async () => {
+    mockSpawnSync
+      .mockReturnValueOnce(successExit());
+
+    // Execute a command with retry
+    await runFakeTimers(spawnWithRetry(['gh', 'api', 'test']));
+
+    expect(mockSpawnSync).toHaveBeenCalledWith(
+      'gh',
+      ['api', 'test'],
+      expect.objectContaining({
+        stdio: [expect.anything(), expect.anything(), 'pipe'],
+        encoding: 'utf-8',
+      }),
+    );
   });
 
   test('executeWithRetry should retry on failure', async () => {

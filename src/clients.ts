@@ -118,15 +118,26 @@ async function removeSecret(repository: string, key: string): Promise<void> {
 }
 
 export async function spawnWithRetry(argv: string[], options: Omit<SpawnSyncOptionsWithBufferEncoding, 'stdio'> = {}, retryOptions?: RetryOptions) {
-  return executeWithRetry(() => spawnSync(argv[0], argv.slice(1), {
-    ...(options.input ? { input: options.input } : {}),
-    stdio: [
-      options.input ? 'pipe' : 'ignore',
-      options.input ? 'inherit': 'pipe',
-      'inherit',
-    ],
-    encoding: 'utf-8',
-  }), retryOptions);
+  return executeWithRetry(() => {
+    const ret = spawnSync(argv[0], argv.slice(1), {
+      ...(options.input ? { input: options.input } : {}),
+      stdio: [
+        options.input ? 'pipe' : 'ignore',
+        'pipe',
+        'pipe',
+      ],
+      encoding: 'utf-8',
+    });
+
+    // This is to retain compatiblity with behavior that was added in https://github.com/cdklabs/aws-secrets-github-sync/pull/1003,
+    // where we made sure we print the output of the underlying tool.
+    if (options.input) {
+      process.stdout.write(ret.stdout);
+    }
+    process.stderr.write(ret.stderr);
+
+    return ret;
+  }, retryOptions);
 }
 
 /**
@@ -214,6 +225,10 @@ export interface Secret {
  * Throw an exception if a subprocess exited with an unsuccessful exit code
  */
 function assertSuccess<A extends ReturnType<typeof spawnSync>>(x: A): A {
+  if (!x.stderr) {
+    throw new Error('PRECONDITION FAILED! stderr is not being captured by the result of spawn');
+  }
+
   if (x.error) {
     throw x.error;
   }
