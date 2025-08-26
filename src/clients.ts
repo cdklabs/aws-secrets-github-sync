@@ -225,7 +225,7 @@ export interface Secret {
  * Throw an exception if a subprocess exited with an unsuccessful exit code
  */
 function assertSuccess<A extends ReturnType<typeof spawnSync>>(x: A): A {
-  if (!x.stderr) {
+  if (x.stderr === undefined) {
     throw new Error('PRECONDITION FAILED! stderr is not being captured by the result of spawn');
   }
 
