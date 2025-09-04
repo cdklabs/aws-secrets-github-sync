@@ -71,6 +71,8 @@ Options:
 * `-r`, `--repo` - The GitHub full repository name (e.g.
   `cdklabs/aws-secrets-github-sync`). If this is not specified, we will try to resolve the
   repo from the current git settings.
+* `-e`, `--environment` - GitHub environment name to sync secrets to. If specified,
+  secrets will be synced to environment secrets instead of repository secrets.
 * `-R`, `--region` - The AWS region to read the secret from. If this is not
   specified, `AWS_REGION` will be used. If the secret is an ARN, we will resolve
   the region from the ARN.
@@ -82,12 +84,13 @@ You can also specify all options via a configuration file. Here's an example
 ```json
 {
   "secret": "publishing-secrets",
+  "environment": "production",
   "region": "us-east-1",
   "prune": true,
   "keys": [
     "NPM_TOKEN",
     "PROJEN_GITHUB_TOKEN"
-  ],
+  ]
 }
 ```
 
@@ -96,6 +99,18 @@ And then, execute:
 ```shell
 aws-secrets-github-sync -C secrets.json
 ```
+
+### Environment Secrets
+
+To sync secrets to a GitHub environment instead of repository secrets, use the
+`--environment` (or `-e`) option:
+
+```shell
+aws-secrets-github-sync -s SECRET -e production --all
+```
+
+This will sync all keys from the AWS Secrets Manager secret to the "production"
+environment secrets in your GitHub repository.
 
 ## Auditing
 

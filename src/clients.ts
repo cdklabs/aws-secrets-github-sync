@@ -65,9 +65,9 @@ export interface Clients {
   getSecret(secretId: string, options?: SecretOptions): Promise<Secret>;
   confirmPrompt(): Promise<boolean>;
   getRepositoryName(): Promise<string>;
-  storeSecret(repository: string, key: string, value: string): Promise<void>;
-  listSecrets(repository: string): Promise<string[]>;
-  removeSecret(repository: string, key: string): Promise<void>;
+  storeSecret(repository: string, key: string, value: string, environment?: string): Promise<void>;
+  listSecrets(repository: string, environment?: string): Promise<string[]>;
+  removeSecret(repository: string, key: string, environment?: string): Promise<void>;
   log(text?: string): void;
 }
 
@@ -97,13 +97,20 @@ async function getRepositoryName(): Promise<string> {
   }
 }
 
-async function storeSecret(repository: string, name: string, value: string): Promise<void> {
-  const args = ['secret', 'set', '--repo', repository, name];
+async function storeSecret(repository: string, name: string, value: string, environment?: string): Promise<void> {
+  const args = ['secret', 'set', '--repo', repository];
+  if (environment) {
+    args.push('--env', environment);
+  }
+  args.push(name);
   await spawnWithRetry(['gh', ...args], { input: value });
 }
 
-async function listSecrets(repository: string): Promise<string[]> {
+async function listSecrets(repository: string, environment?: string): Promise<string[]> {
   const args = ['secret', 'list', '--repo', repository];
+  if (environment) {
+    args.push('--env', environment);
+  }
   const result = await spawnWithRetry(['gh', ...args]);
   const stdout = result.stdout.trim();
   if (!stdout) {
@@ -112,8 +119,12 @@ async function listSecrets(repository: string): Promise<string[]> {
   return stdout.split('\n').map((line: string) => line.split('\t')[0]);
 }
 
-async function removeSecret(repository: string, key: string): Promise<void> {
-  const args = ['secret', 'remove', '--repo', repository, key];
+async function removeSecret(repository: string, key: string, environment?: string): Promise<void> {
+  const args = ['secret', 'remove', '--repo', repository];
+  if (environment) {
+    args.push('--env', environment);
+  }
+  args.push(key);
   await spawnWithRetry(['gh', ...args]);
 }
 

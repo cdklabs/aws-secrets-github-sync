@@ -66,6 +66,13 @@ export interface UpdateSecretsOptions {
    * @default []
    */
   readonly keep?: string[];
+
+  /**
+   * GitHub environment name to sync secrets to.
+   * If specified, secrets will be synced to environment secrets instead of repository secrets.
+   * @default undefined - sync to repository secrets
+   */
+  readonly environment?: string;
 }
 
 /**
@@ -117,13 +124,16 @@ export async function updateSecrets(options: UpdateSecretsOptions) {
   }
 
   // find all the secrets in the repo that don't correspond to keys in the secret
-  const existingKeys = await c.listSecrets(repository);
+  const existingKeys = await c.listSecrets(repository, options.environment);
   const pruneCandidates = existingKeys.filter(key => !keys.includes(key));
   const keysToPrune = pruneCandidates.filter(key => !keep.includes(key));
   const keysToKeep = pruneCandidates.filter(key => keep.includes(key));
 
   c.log(`FROM  : ${secret.arn}`);
   c.log(`REPO  : ${repository}`);
+  if (options.environment) {
+    c.log(`ENV   : ${options.environment}`);
+  }
   c.log(`UDPATE: ${keys.join(',')}`);
 
   if (pruneCandidates.length > 0) {
@@ -153,13 +163,13 @@ export async function updateSecrets(options: UpdateSecretsOptions) {
       continue; // skip if key is not in "keys"
     }
 
-    await c.storeSecret(repository, key, value);
+    await c.storeSecret(repository, key, value, options.environment);
   }
 
   // prune keys that are not in the secret
   if (prune) {
     for (const key of keysToPrune) {
-      await c.removeSecret(repository, key);
+      await c.removeSecret(repository, key, options.environment);
     }
   }
 }

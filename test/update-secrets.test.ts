@@ -72,7 +72,7 @@ test('"allKeys" will update all secrets', async () => {
   expect(mocks.confirmPrompt).toHaveBeenCalledTimes(1);
   expect(mocks.storeSecret).toHaveBeenCalledTimes(Object.keys(secretJson).length);
   for (const [key, secret] of Object.entries(secretJson)) {
-    expect(mocks.storeSecret).toHaveBeenCalledWith('my-owner/my-repo', key, secret);
+    expect(mocks.storeSecret).toHaveBeenCalledWith('my-owner/my-repo', key, secret, undefined);
   }
   expect(mocks.listSecrets).toHaveBeenCalled();
   expect(mocks.removeSecret).not.toHaveBeenCalled();
@@ -113,8 +113,8 @@ test('"keys" can be used to specify which keys to store', async () => {
   });
 
   expect(mocks.storeSecret).toHaveBeenCalledTimes(2);
-  expect(mocks.storeSecret).toHaveBeenCalledWith('my-owner/my-repo', 'NPM_TOKEN', 'my-npm-token');
-  expect(mocks.storeSecret).toHaveBeenCalledWith('my-owner/my-repo', 'TWINE_USERNAME', 'my-twine-username');
+  expect(mocks.storeSecret).toHaveBeenCalledWith('my-owner/my-repo', 'NPM_TOKEN', 'my-npm-token', undefined);
+  expect(mocks.storeSecret).toHaveBeenCalledWith('my-owner/my-repo', 'TWINE_USERNAME', 'my-twine-username', undefined);
   expect(mocks.listSecrets).toHaveBeenCalled();
   expect(mocks.removeSecret).not.toHaveBeenCalled();
 });
@@ -149,8 +149,8 @@ test('explicit repository name can be specified', async () => {
   });
 
   expect(mocks.storeSecret).toHaveBeenCalledTimes(2);
-  expect(mocks.storeSecret).toHaveBeenCalledWith('foo/bar', 'NPM_TOKEN', 'my-npm-token');
-  expect(mocks.storeSecret).toHaveBeenCalledWith('foo/bar', 'TWINE_USERNAME', 'my-twine-username');
+  expect(mocks.storeSecret).toHaveBeenCalledWith('foo/bar', 'NPM_TOKEN', 'my-npm-token', undefined);
+  expect(mocks.storeSecret).toHaveBeenCalledWith('foo/bar', 'TWINE_USERNAME', 'my-twine-username', undefined);
   expect(mocks.listSecrets).toHaveBeenCalled();
   expect(mocks.removeSecret).not.toHaveBeenCalled();
 });
@@ -189,9 +189,9 @@ test('prune will remove keys', async () => {
   });
 
   expect(mocks.storeSecret).toHaveBeenCalledTimes(Object.keys(secretJson).length);
-  expect(mocks.listSecrets).toHaveBeenCalledWith('my-owner/my-repo');
-  expect(mocks.removeSecret).toHaveBeenCalledWith('my-owner/my-repo', 'ANOTHER_SECRET');
-  expect(mocks.removeSecret).toHaveBeenCalledWith('my-owner/my-repo', 'BOOM_BAM');
+  expect(mocks.listSecrets).toHaveBeenCalledWith('my-owner/my-repo', undefined);
+  expect(mocks.removeSecret).toHaveBeenCalledWith('my-owner/my-repo', 'ANOTHER_SECRET', undefined);
+  expect(mocks.removeSecret).toHaveBeenCalledWith('my-owner/my-repo', 'BOOM_BAM', undefined);
 });
 
 test('update secrets accepts a profile', async () => {
@@ -215,9 +215,67 @@ test('"keep" can be used to retain keys depite prune', async () => {
   });
 
   expect(mocks.storeSecret).toHaveBeenCalledTimes(Object.keys(secretJson).length);
-  expect(mocks.listSecrets).toHaveBeenCalledWith('my-owner/my-repo');
-  expect(mocks.removeSecret).toHaveBeenCalledWith('my-owner/my-repo', 'ANOTHER_SECRET');
-  expect(mocks.removeSecret).not.toHaveBeenCalledWith('my-owner/my-repo', 'BOOM_BAM');
+  expect(mocks.listSecrets).toHaveBeenCalledWith('my-owner/my-repo', undefined);
+  expect(mocks.removeSecret).toHaveBeenCalledWith('my-owner/my-repo', 'ANOTHER_SECRET', undefined);
+  expect(mocks.removeSecret).not.toHaveBeenCalledWith('my-owner/my-repo', 'BOOM_BAM', undefined);
+});
+
+test('environment secrets: stores secrets to specified environment', async () => {
+  await updateSecrets({
+    clients: mocks,
+    secret: 'my-secret-name',
+    keys: ['NPM_TOKEN', 'TWINE_USERNAME'],
+    environment: 'production',
+  });
+
+  expect(mocks.storeSecret).toHaveBeenCalledTimes(2);
+  expect(mocks.storeSecret).toHaveBeenCalledWith('my-owner/my-repo', 'NPM_TOKEN', 'my-npm-token', 'production');
+  expect(mocks.storeSecret).toHaveBeenCalledWith('my-owner/my-repo', 'TWINE_USERNAME', 'my-twine-username', 'production');
+  expect(mocks.listSecrets).toHaveBeenCalledWith('my-owner/my-repo', 'production');
+});
+
+test('environment secrets: prunes environment secrets correctly', async () => {
+  await updateSecrets({
+    clients: mocks,
+    secret: 'my-secret-name',
+    allKeys: true,
+    prune: true,
+    environment: 'staging',
+  });
+
+  expect(mocks.storeSecret).toHaveBeenCalledTimes(Object.keys(secretJson).length);
+  expect(mocks.listSecrets).toHaveBeenCalledWith('my-owner/my-repo', 'staging');
+  expect(mocks.removeSecret).toHaveBeenCalledWith('my-owner/my-repo', 'ANOTHER_SECRET', 'staging');
+  expect(mocks.removeSecret).toHaveBeenCalledWith('my-owner/my-repo', 'BOOM_BAM', 'staging');
+});
+
+test('environment secrets: keep works with environment secrets', async () => {
+  await updateSecrets({
+    clients: mocks,
+    secret: 'my-secret-name',
+    allKeys: true,
+    prune: true,
+    keep: ['BOOM_BAM'],
+    environment: 'development',
+  });
+
+  expect(mocks.storeSecret).toHaveBeenCalledTimes(Object.keys(secretJson).length);
+  expect(mocks.listSecrets).toHaveBeenCalledWith('my-owner/my-repo', 'development');
+  expect(mocks.removeSecret).toHaveBeenCalledWith('my-owner/my-repo', 'ANOTHER_SECRET', 'development');
+  expect(mocks.removeSecret).not.toHaveBeenCalledWith('my-owner/my-repo', 'BOOM_BAM', 'development');
+});
+
+test('environment secrets: works with custom repository', async () => {
+  await updateSecrets({
+    clients: mocks,
+    secret: 'my-secret-name',
+    keys: ['NPM_TOKEN'],
+    repository: 'custom/repo',
+    environment: 'test',
+  });
+
+  expect(mocks.storeSecret).toHaveBeenCalledWith('custom/repo', 'NPM_TOKEN', 'my-npm-token', 'test');
+  expect(mocks.listSecrets).toHaveBeenCalledWith('custom/repo', 'test');
 });
 
 // Tests for the retry functionality
