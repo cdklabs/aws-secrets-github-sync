@@ -16,6 +16,7 @@ async function main() {
     .option('prune', { type: 'boolean', describe: 'Remove old keys from GitHub', default: false })
     .option('yes', { type: 'boolean', describe: 'Skip confirmation prompt', default: false, alias: 'y' })
     .option('keep', { type: 'array', describe: 'Keep these keys in GitHub (can be used multiple times)', default: [] })
+    .option('environment', { alias: 'e', type: 'string', describe: 'GitHub environment name to sync secrets to (syncs to environment secrets instead of repository secrets)' })
     .example('$0 -s my-secrets --all', 'Updates all secrets from AWS Secrets Manager to the current github repository (region can be omitted by specifying an ARN)')
     .example('$0 -s my-secrets -k TWINE_USERNAME -k TWINE_PASSWORD', 'Only updates two secrets')
     .example('$0 -c sm2gh.json', 'Read settings from sm2gh.json')
@@ -39,6 +40,7 @@ async function main() {
     prune: argv.prune,
     profile: argv.profile,
     keep: argv.keep.map(String),
+    environment: argv.environment,
   });
 }
 
