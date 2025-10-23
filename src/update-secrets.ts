@@ -134,7 +134,7 @@ export async function updateSecrets(options: UpdateSecretsOptions) {
   if (options.environment) {
     c.log(`ENV   : ${options.environment}`);
   }
-  c.log(`UDPATE: ${keys.join(',')}`);
+  c.log(`UPDATE: ${keys.join(',')}`);
 
   if (pruneCandidates.length > 0) {
     if (prune) {
